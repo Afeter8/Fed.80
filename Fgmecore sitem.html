@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FGME-AutoRun — Sistema Inmutable IA</title>
+  <meta name="author" content="Fernando Guadalupe Mendez Espinoza" />
+  <meta name="description" content="FGME - Sistema inmutable, rotativo y autoejecutable para entrenamiento IA en bucle eterno." />
+  <style>
+    :root{
+      --bg:#051923; --card:#0c2d48; --accent:#2e8bc0; --muted:#b1d4e0; --good:#43aa8b; --bad:#f94144;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:Inter,ui-sans-serif,system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,var(--bg),#021018); color:var(--muted); padding:20px;}
+    .wrap{max-width:1100px;margin:0 auto}
+    header{display:flex;gap:16px;align-items:center;margin-bottom:18px}
+    .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#145da0);display:flex;align-items:center;justify-content:center;font-weight:800;color:#001;}
+    h1{font-size:1.4rem;margin:0}
+    p.lead{margin:6px 0 0;color:rgba(177,212,224,0.9)}
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
+    .card{background:var(--card);padding:16px;border-radius:10px;border:1px solid rgba(46,139,192,0.12);box-shadow: 0 6px 24px rgba(2,8,20,0.6)}
+    .small{font-size:0.86rem;color:rgba(177,212,224,0.8)}
+    .status-dot{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:8px}
+    button{background:linear-gradient(90deg,var(--accent),#145da0);border:0;padding:10px 12px;border-radius:8px;color:#001;font-weight:700;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    pre{background:var(--glass);padding:12px;border-radius:8px;overflow:auto;max-height:260px}
+    .modules{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px}
+    .module{background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.02);font-size:0.9rem}
+    footer{margin-top:18px;color:rgba(177,212,224,0.6);font-size:0.86rem;text-align:center}
+    .log{font-family:monospace;white-space:pre-wrap;max-height:280px;overflow:auto;background:#021018;padding:12px;border-radius:8px;border:1px solid rgba(46,139,192,0.06)}
+    .danger{color:var(--bad)}
+    .good{color:var(--good)}
+    /* responsive */
+    @media (max-width:960px){ .grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">FGME</div>
+      <div>
+        <h1>FGME AutoRun · Sistema Inmutable IA</h1>
+        <p class="lead">Archivo HTML auto-ejecutable — bucle eterno, código rotativo, validación de integridad y módulos para JS/JSON/Python/CSS/HTML.</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- MAIN -->
+      <section class="card" aria-live="polite">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div><span class="status-dot" id="dot-integrity" style="background:var(--bad)"></span><strong>Integridad:</strong> <span id="integrityText">No verificada</span></div>
+            <div class="small" style="margin-top:6px">Autor: <strong>Fernando Guadalupe Mendez Espinoza</strong></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="btn-start">Iniciar Sistema</button>
+            <button id="btn-stop" class="ghost" style="display:none">Detener</button>
+          </div>
+        </div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)">
+
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="flex:1">
+            <h3 style="margin:0 0 8px">Registro / Log</h3>
+            <div id="log" class="log">Sistema inactivo. Pulse "Iniciar Sistema".</div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <button id="btn-manual-rotate" class="ghost">Generar Rotación Manual</button>
+              <button id="btn-run-py" class="ghost">Ejecutar Python de Prueba</button>
+              <button id="btn-fetch-ipfs" class="ghost">Restaurar desde IPFS (CID)</button>
+            </div>
+          </div>
+
+          <aside style="width:320px">
+            <div class="card" style="margin-bottom:10px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <strong>Estado IA</strong>
+                <span id="iaState" class="small">Detenido</span>
+              </div>
+              <div style="margin-top:8px">
+                <div class="modules">
+                  <div class="module">JS Runner ✔</div>
+                  <div class="module">JSON Config ✔</div>
+                  <div class="module">Pyodide (Python) ✳</div>
+                  <div class="module">IPFS Stub ✳</div>
+                  <div class="module">GitHub Stub ✳</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div style="display:flex;align-items:center;gap:10px">
+                <strong>Configuración</strong>
+              </div>
+              <pre id="config" style="margin-top:8px">
+{
+  "autor": "Fernando Guadalupe Mendez Espinoza",
+  "immutableSignature": "FGME-SIGN-V1-PLACEHOLDER",
+  "ipfsBackupCID": "",
+  "githubRepo": "",
+  "loopIntervalMs": 5000
+}
+              </pre>
+              <div style="margin-top:8px;display:flex;gap:6px">
+                <button id="btn-edit-config" class="ghost">Editar Config</button>
+                <button id="btn-save-config" class="ghost">Guardar (local)</button>
+              </div>
+            </div>
+
+          </aside>
+        </div>
+
+        <hr style="margin:14px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)">
+
+        <section>
+          <h3 style="margin:0 0 8px">Módulos Avanzados</h3>
+          <div class="modules">
+            <div class="module">Auto-Repair</div>
+            <div class="module">Rotating Code</div>
+            <div class="module">Integrity Checker</div>
+            <div class="module">Auto-Trainer</div>
+            <div class="module">Backup/IPFS</div>
+            <div class="module">Web3 Register</div>
+          </div>
+        </section>
+      </section>
+
+      <!-- SIDEBAR -->
+      <aside>
+        <div class="card">
+          <h3 style="margin:0 0 8px">Ejecutores Embebidos</h3>
+          <div class="small">Es posible ejecutar pequeños fragmentos integrados de los idiomas soportados.</div>
+          <div style="margin-top:12px">
+            <label class="small">JS Inline</label>
+            <textarea id="jsInline" style="width:100%;height:80px;background:#021018;color:var(--muted);border-radius:6px;padding:8px;border:1px solid rgba(255,255,255,0.02)">// Ejemplo: console.log('hello js')</textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button id="runJs">Run JS</button>
+              <button id="clearLog" class="ghost">Limpiar Log</button>
+            </div>
+
+            <div style="margin-top:12px">
+              <label class="small">JSON Config</label>
+              <textarea id="jsonInline" style="width:100%;height:80px;background:#021018;color:var(--muted);border-radius:6px;padding:8px;border:1px solid rgba(255,255,255,0.02)">{ "autoRepair": true }</textarea>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button id="applyJson" class="ghost">Aplicar JSON</button>
+              </div>
+            </div>
+
+            <div style="margin-top:12px">
+              <label class="small">Python (Pyodide)</label>
+              <textarea id="pyInline" style="width:100%;height:80px;background:#021018;color:var(--muted);border-radius:6px;padding:8px;border:1px solid rgba(255,255,255,0.02)">print('Hola desde Pyodide')</textarea>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button id="runPy" class="ghost">Run Python</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h4 style="margin:0 0 8px">Integraciones</h4>
+          <div class="small">IPFS / GitHub / Web3 — configure claves o CIDs con cuidado.</div>
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+            <input id="ipfsCID" placeholder="IPFS CID de backup (opcional)" style="padding:8px;border-radius:6px;background:#021018;border:1px solid rgba(255,255,255,0.02);color:var(--muted)">
+            <input id="githubToken" placeholder="GitHub Token (opcional)" style="padding:8px;border-radius:6px;background:#021018;border:1px solid rgba(255,255,255,0.02);color:var(--muted)">
+            <button id="btn-connect-ipfs" class="ghost">Conectar (simulación)</button>
+            <button id="btn-register-web3" class="ghost">Registrar Evento (simulación)</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer>
+      <div class="small">Este archivo es una base técnica para FGME-NET. Para integraciones reales (IPFS/GitHub/Web3) hay que añadir credenciales y nodos. Use responsablemente.</div>
+    </footer>
+  </div>
+
+  <!-- ---------- LIBRERÍAS OPCIONALES (CARGA AL INICIO) ---------- -->
+  <!-- Pyodide para ejecución Python en navegador -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.23.3/full/pyodide.js"></script>
+
+  <!-- ---------- CORE SCRIPT: FGME AutoRun System ---------- -->
+  <script>
+  (function(){
+    // ---------- CONFIG y estado ----------
+    let state = {
+      running: false,
+      intervalId: null,
+      config: {
+        autor: "Fernando Guadalupe Mendez Espinoza",
+        immutableSignature: "FGME-SIGN-V1-PLACEHOLDER",
+        ipfsBackupCID: "",
+        githubRepo: "",
+        loopIntervalMs: 5000
+      },
+      pyodide: null
+    };
+
+    const $ = id => document.getElementById(id);
+    const logEl = $('log');
+    const updateLog = (msg) => {
+      const ts = new Date().toLocaleString();
+      logEl.textContent = ts + " - " + msg + "\\n" + logEl.textContent;
+    };
+
+    // ---------- UTIL: Immutable check (simple placeholder) ----------
+    function checkImmutable() {
+      // En sistema real, aquí verificas firma criptográfica y hash con blockchain/IPFS
+      const expectedAuthor = state.config.autor;
+      const authorOk = expectedAuthor === "Fernando Guadalupe Mendez Espinoza";
+      $('integrityText').innerText = authorOk ? "Autenticidad OK" : "Firma no válida";
+      $('dot-integrity').style.backgroundColor = authorOk ? getComputedStyle(document.documentElement).getPropertyValue('--good') : getComputedStyle(document.documentElement).getPropertyValue('--bad');
+      return authorOk;
+    }
+
+    // ---------- ROTATION: Generar código rotativo seguro (simulación) ----------
+    function generateRotation() {
+      // rotación basada en tiempo + entropía local (no es una firma criptográfica real)
+      const entropy = Math.floor(Math.random() * 1e9).toString(36);
+      const stamp = Date.now().toString(36);
+      const rotation = btoa(entropy + "-" + stamp).substr(0, 28);
+      updateLog("Rotación generada: " + rotation);
+      return rotation;
+    }
+
+    // ---------- AUTO-TRAIN: Simulación de paso de entrenamiento ----------
+    async function autoTrainStep() {
+      updateLog("AutoTrain: recopilando datos...");
+
+      // Ejemplo: ejecutar JS de mantenimiento
+      try {
+        // placeholder para steps más complejos (descarga modelos, reentrenamiento)
+        updateLog("AutoTrain: cálculo de gradientes simulados ✔");
+      } catch(e){
+        updateLog("AutoTrain ERROR: " + String(e));
+      }
+    }
+
+    // ---------- AUTO-REPAIR: Restauración desde IPFS fallback ----------
+    async function autoRepair() {
+      const cid = $('ipfsCID').value || state.config.ipfsBackupCID;
+      if (!cid) {
+        updateLog("AutoRepair: no hay CID configurado. Saltando reparación.");
+        return false;
+      }
+      updateLog("AutoRepair: intentando restaurar desde IPFS CID: " + cid);
+      // Simulación: en real, usar ipfs-api o js-ipfs para obtener el HTML/backup
+      updateLog("AutoRepair: restauración simulada completada (modo demo).");
+      return true;
+    }
+
+    // ---------- PYODIDE: ejecutar código python si está disponible ----------
+    async function ensurePyodide() {
+      if (state.pyodide) return state.pyodide;
+      if (window.loadPyodide) {
+        updateLog("Cargando Pyodide (Python en navegador)...");
+        state.pyodide = await loadPyodide({indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.3/full/"});
+        updateLog("Pyodide listo.");
+        return state.pyodide;
+      } else {
+        updateLog("Pyodide no cargado o no disponible.");
+        return null;
+      }
+    }
+
+    // ---------- LOOP CORE ----------
+    async function coreLoop() {
+      if (!checkImmutable()) {
+        updateLog("WARNING: integridad fallida. Iniciando auto-reparación...");
+        const ok = await autoRepair();
+        if (!ok) {
+          updateLog("Auto-repair falló. Deteniendo sistema autoejecutable.");
+          stopSystem();
+          return;
+        }
+      }
+      // Rotación de código
+      const rotation = generateRotation();
+
+      // Ejecutar paso de entrenamiento
+      await autoTrainStep();
+
+      // Ejecutar comprobaciones de salud, uso de recursos y limpiar caches (simulado)
+      updateLog("Health Check: OK · Memoria simulada estable.");
+
+      // Registrar evento (simulación de Web3 commit)
+      updateLog("Registro: evento de ciclo creado (simulación).");
+    }
+
+    function startSystem() {
+      if (state.running) return;
+      state.running = true;
+      $('btn-start').style.display = 'none';
+      $('btn-stop').style.display = 'inline-block';
+      $('iaState').innerText = "En ejecución";
+      updateLog("Sistema arrancando...");
+      checkImmutable();
+      // comenzar bucle
+      state.intervalId = setInterval(coreLoop, state.config.loopIntervalMs);
+      coreLoop(); // primera ejecución inmediata
+    }
+
+    function stopSystem() {
+      if (!state.running) return;
+      state.running = false;
+      if (state.intervalId) { clearInterval(state.intervalId); state.intervalId = null; }
+      $('btn-start').style.display = 'inline-block';
+      $('btn-stop').style.display = 'none';
+      $('iaState').innerText = "Detenido";
+      updateLog("Sistema detenido por el usuario.");
+    }
+
+    // ---------- UI hooks ----------
+    $('btn-start').addEventListener('click', startSystem);
+    $('btn-stop').addEventListener('click', stopSystem);
+    $('btn-manual-rotate').addEventListener('click', () => { generateRotation(); });
+    $('runJs').addEventListener('click', () => {
+      const code = $('jsInline').value;
+      try {
+        updateLog("Ejecutando JS inline...");
+        // eslint-disable-next-line no-eval
+        const res = eval("(function(){ " + code + " })();");
+        updateLog("JS result: " + String(res));
+      } catch (e) { updateLog("JS error: " + String(e)); }
+    });
+    $('clearLog').addEventListener('click', () => { logEl.textContent = ''; });
+
+    $('applyJson').addEventListener('click', () => {
+      try {
+        const j = JSON.parse($('jsonInline').value);
+        state.config = Object.assign(state.config, j);
+        $('config').textContent = JSON.stringify(state.config, null, 2);
+        updateLog("JSON aplicado a configuración.");
+      } catch(e) { updateLog("Error JSON: " + String(e)); }
+    });
+
+    $('runPy').addEventListener('click', async () => {
+      const py = $('pyInline').value;
+      const pyodide = await ensurePyodide();
+      if (!pyodide) { updateLog("Pyodide no disponible."); return; }
+      try {
+        updateLog("Ejecutando Python...");
+        const out = await pyodide.runPythonAsync(py);
+        updateLog("Python result: " + String(out));
+      } catch(e) { updateLog("Python error: " + String(e)); }
+    });
+
+    // Simulaciones de integraciones
+    $('btn-connect-ipfs').addEventListener('click', () => {
+      updateLog("IPFS: conexión simulada. En producción configure js-ipfs o ipfs-http-client.");
+    });
+    $('btn-register-web3').addEventListener('click', () => {
+      updateLog("Web3: evento simulado registrado. Para producción integre Web3.js/ethers y una wallet segura.");
+    });
+    $('btn-fetch-ipfs').addEventListener('click', async () => {
+      const cid = $('ipfsCID').value || state.config.ipfsBackupCID;
+      if (!cid) { updateLog("No hay CID. Configure un CID de backup."); return; }
+      updateLog("Simulación: restaurando desde IPFS CID: " + cid);
+      // en producción -> fetch desde gateway o usar ipfs client
+      updateLog("Restauración (simulada) completada.");
+    });
+
+    // Guardar config en localStorage
+    $('btn-save-config').addEventListener('click', () => {
+      localStorage.setItem('fgme_config', JSON.stringify(state.config));
+      updateLog("Configuración guardada en localStorage.");
+    });
+    $('btn-edit-config').addEventListener('click', () => {
+      const current = JSON.stringify(state.config, null, 2);
+      const newVal = prompt("Editar configuración (JSON):", current);
+      if (!newVal) return;
+      try {
+        const parsed = JSON.parse(newVal);
+        state.config = parsed;
+        $('config').textContent = JSON.stringify(state.config, null, 2);
+        updateLog("Configuración editada manualmente.");
+      } catch(e) { updateLog("Error al parsear JSON: " + String(e)); }
+    });
+
+    // Restore config from storage on load
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem('fgme_config');
+      if (saved) {
+        try { state.config = Object.assign(state.config, JSON.parse(saved)); $('config').textContent = JSON.stringify(state.config, null, 2); updateLog("Configuración restaurada desde localStorage."); } catch(e){}
+      }
+    });
+
+    // Security: prevent being embedded remotely (clickjacking minimal)
+    if (window.top !== window.self) {
+      updateLog("Aviso: el sistema no debe correr embebido en iframe por seguridad.");
+    }
+
+  })();
+  </script>
+</body>
+</html>
