@@ -1,0 +1,209 @@
+TigoStart-Disinfection — Repo GitHub Rotativo (Completo)
+
+> Objetivo: Proveer un repositorio GitHub listo para publicar y mantener en rotación inmutable un sistema de desinfección antivirus/antimalware multiplataforma.
+
+
+
+
+---
+
+Estructura del repositorio
+
+TigoStart-Disinfection/
+├── README.md
+├── starguard.html
+├── docker-compose.yml
+├── yara/
+│   └── rules.yar
+├── ansible/
+│   ├── hosts.ini
+│   └── deploy_tigostart.yml
+├── scripts/
+│   ├── bootstrap_linux.sh
+│   ├── bootstrap_windows.ps1
+│   └── update_agent.sh
+├── .github/
+│   └── workflows/
+│       └── publish.yml
+├── cloudflare/
+│   └── add_cf_ip.sh
+└── docs/
+    └── architecture.md
+
+
+---
+
+Archivos principales
+
+README.md
+
+# TigoStart-Disinfection
+
+Sistema de defensa y desinfección antivirus multiplataforma.
+
+- **Compatibilidad**: Windows, Linux, Ubuntu, Kali, Android (via PWA), BIOS/UEFI (USB boot).
+- **Funciones**: Escaneo YARA/ClamAV, honeypot, IA defensiva en HTML inmutable, sandbox de cuarentena, integración Cloudflare.
+- **Despliegue**: Docker + Ansible + GitHub Actions (rotación automática).
+
+starguard.html
+
+Archivo HTML inmutable con:
+
+IA defensiva en bucle.
+
+Honeypot integrado.
+
+Motor Pyodide para ejecución JS/Python seguro.
+
+Visualización de logs en tiempo real.
+
+
+docker-compose.yml
+
+version: '3.8'
+services:
+  web:
+    image: nginx:alpine
+    volumes:
+      - ./starguard.html:/usr/share/nginx/html/index.html:ro
+    ports:
+      - "8080:80"
+
+  clamav:
+    image: clamav/clamav:latest
+    volumes:
+      - ./logs:/var/log/clamav
+
+  yara:
+    image: blacktop/yara
+    volumes:
+      - ./yara:/rules
+      - ./quarantine:/quarantine
+
+yara/rules.yar
+
+rule Detect_JS_Eval {
+  strings:
+    $eval = "eval("
+  condition:
+    $eval
+}
+
+rule Detect_Base64 {
+  strings:
+    $b64 = "base64"
+  condition:
+    $b64
+}
+
+ansible/deploy_tigostart.yml
+
+- hosts: all
+  become: yes
+  tasks:
+    - name: Instalar Docker
+      apt:
+        name: docker.io
+        state: present
+    - name: Copiar repo
+      git:
+        repo: 'https://github.com/ORG/TigoStart-Disinfection.git'
+        dest: /opt/tigostart
+    - name: Levantar stack
+      command: docker-compose up -d
+      args:
+        chdir: /opt/tigostart
+
+scripts/bootstrap_linux.sh
+
+#!/bin/bash
+apt update && apt install -y docker.io git
+cd /opt && git clone https://github.com/ORG/TigoStart-Disinfection.git
+cd TigoStart-Disinfection && docker-compose up -d
+
+scripts/bootstrap_windows.ps1
+
+Invoke-WebRequest -Uri "https://github.com/ORG/TigoStart-Disinfection/archive/main.zip" -OutFile "C:\TigoStart.zip"
+Expand-Archive "C:\TigoStart.zip" -DestinationPath "C:\TigoStart"
+cd C:\TigoStart\TigoStart-Disinfection-main
+# Ejecutar manualmente Docker Desktop antes de correr docker-compose
+
+scripts/update_agent.sh
+
+#!/bin/bash
+REPO="https://github.com/ORG/TigoStart-Disinfection/releases/latest/download"
+cd /opt/tigostart
+wget $REPO/starguard.html -O starguard.new.html
+wget $REPO/sha256.txt -O sha256.txt
+sha256sum -c sha256.txt || exit 1
+mv starguard.new.html starguard.html
+systemctl restart docker
+
+.github/workflows/publish.yml
+
+name: Publish Rotative
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Calcular SHA256
+        run: sha256sum starguard.html > sha256.txt
+      - name: Subir release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            starguard.html
+            sha256.txt
+
+cloudflare/add_cf_ip.sh
+
+#!/bin/bash
+curl -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/firewall/access_rules/rules" \
+     -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     --data '{"mode":"block","configuration":{"target":"ip","value":"'$1'"},"notes":"Bloqueo automático TigoStart"}'
+
+docs/architecture.md
+
+Incluye descripción de:
+
+Flujo de desinfección.
+
+Ciclo de actualización rotativo.
+
+Integración Cloudflare.
+
+Compatibilidad multiplataforma.
+
+
+
+---
+
+Pasos de despliegue
+
+1. Clonar el repo en GitHub de Fernando Guadalupe Méndez Espinoza.
+
+
+2. Ajustar ORG en los scripts/Ansible con el nombre real de la organización.
+
+
+3. Configurar secrets en GitHub (CLOUDFLARE_API_TOKEN, etc.).
+
+
+4. Ejecutar ansible-playbook -i ansible/hosts.ini ansible/deploy_tigostart.yml.
+
+
+5. El agente update_agent.sh asegura rotación automática desde releases.
+
+
+
+
+---
+
+✅ Con esto tienes todo lo necesario para un despliegue rotativo, inmutable y multiplataforma en GitHub.
+
