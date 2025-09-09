@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="es"
+  data-color-mode="auto"
+  data-light-theme="light"
+  data-dark-theme="dark"
+  data-a11y-animated-images="system"
+  data-a11y-link-underlines="true">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TigoStart — HTML Inmutable Autoejecutable (Defensa)</title>
+
+<!-- CSP: restringe redes y evita carga remota; ajustar si necesitas Pyodide offline -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  script-src 'self' 'unsafe-eval';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data:;
+  connect-src 'none';
+  font-src 'self' data:;
+  frame-src 'none';
+  worker-src 'self' blob:;
+  base-uri 'none';
+  form-action 'self';
+  frame-ancestors 'none';
+">
+
+<style>
+  :root{--bg:#0f1720;--card:#0b1220;--accent:#0ea5a4;--text:#e6eef6;}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;smooth-font:antialiased;background:linear-gradient(180deg,#06121a, #081824);color:var(--text)}
+  header{display:flex;align-items:center;gap:16px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.03)}
+  h1{margin:0;font-size:18px}
+  main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px}
+  aside,section{background:rgba(255,255,255,0.02);border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+  textarea{width:100%;min-height:220px;border-radius:8px;padding:10px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.04);color:var(--text);resize:vertical}
+  .row{display:flex;gap:8px;align-items:center}
+  button{background:var(--accent);border:none;color:#042024;padding:8px 10px;border-radius:10px;cursor:pointer}
+  .muted{opacity:.8;font-size:13px}
+  .badge{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.03);font-weight:600}
+  pre.log{height:160px;overflow:auto;background:rgba(0,0,0,.45);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.02)}
+  .small{font-size:13px}
+  footer{padding:12px;text-align:center;color:rgba(255,255,255,.6);font-size:12px}
+  .danger{background:#b00020;color:white}
+  .ok{background:#087f5b;color:white}
+  .warn{background:#d18b00;color:white}
+  input[type=file]{color:var(--text)}
+</style>
+</head>
+<body>
+  <header>
+    <h1>TigoStart · HTML Inmutable (Autoejecutable)</h1>
+    <div class="row" style="margin-left:auto">
+      <span id="stateBadge" class="badge">Inicializando…</span>
+      <button id="btnBootstrap">Fijar hash</button>
+      <button id="btnExport">Exportar reporte</button>
+    </div>
+  </header>
+
+  <main>
+    <aside>
+      <h2>Entrada / Honeypot</h2>
+      <p class="muted">Pega código (JS/CSS/JSON/PY) aquí o sube archivos. Todo se analiza automáticamente.</p>
+      <textarea id="codeIn" placeholder="/* Pega código para analizar */"></textarea>
+      <div class="row" style="margin-top:8px">
+        <input id="fileIn" type="file" multiple accept=".js,.json,.css,.py,.txt"/>
+        <button id="btnClear">Limpiar</button>
+      </div>
+
+      <h3 style="margin-top:12px">Señuelo (login)</h3>
+      <form id="decoyForm" autocomplete="off">
+        <div class="row" style="gap:6px">
+          <input id="decoyU" placeholder="usuario" />
+          <input id="decoyP" placeholder="clave" type="password" />
+          <button>Entrar</button>
+        </div>
+        <small class="muted">Formulario señuelo. Intentos se registran localmente.</small>
+      </form>
+
+      <h3 style="margin-top:12px">Política (JSON)</h3>
+      <textarea id="policyEditor" rows="8"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button id="btnResetPolicy">Restablecer política</button>
+      </div>
+    </aside>
+
+    <section>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2>Resultados / Hallazgos</h2>
+        <div class="row small">
+          <label class="small">Bucle <input id="loopToggle" type="checkbox" checked/></label>
+          <select id="intervalSel">
+            <option value="2000">2s</option>
+            <option value="5000" selected>5s</option>
+            <option value="10000">10s</option>
+          </select>
+        </div>
+      </div>
+
+      <pre id="results" class="log">Sin análisis aún.</pre>
+
+      <h3 style="margin-top:12px">Acciones sugeridas / Automáticas</h3>
+      <pre id="actions" class="log">Sin acciones.</pre>
+
+      <h3 style="margin-top:12px">Auditoría (quarantine store)</h3>
+      <pre id="audit" class="log">Registro vacío.</pre>
+    </section>
+  </main>
+
+  <footer>
+    Inmutabilidad: este documento calcula su hash SHA-256. Pulsa <strong>Fijar hash</strong> una vez para activar protección. Uso defensivo — no realizar acciones en equipos sin autorización.
+  </footer>
+
+<script>
+/* ============================
+   CONFIG — Modifica solo si sabes lo que haces
+   ============================ */
+const EXPECTED_DOC_SHA256_PLACEHOLDER = "TO_BE_FILLED"; // al primer arranque, presiona 'Fijar hash' y pega el valor aquí (edítalo en el archivo)
+let EXPECTED_DOC_SHA256 = EXPECTED_DOC_SHA256_PLACEHOLDER; // cambiar manualmente tras bootstrap
+/* ============================ */
+
+/* --- Utilidades criptográficas (Web Crypto) --- */
+async function sha256_base64_of_string(str){
+  const enc = new TextEncoder();
+  const buf = enc.encode(str);
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  const b = Array.from(new Uint8Array(digest)).map(x=>String.fromCharCode(x)).join('');
+  return 'sha256-' + btoa(b);
+}
+
+/* --- IndexedDB para cuarentena / evidencia --- */
+const DB_NAME = 'tigostart_quarantine_v1';
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded = e => {
+      const db = e.target.result;
+      db.createObjectStore('samples',{keyPath:'id'});
+    };
+    r.onsuccess = e => res(e.target.result);
+    r.onerror = e => rej(e);
+  });
+}
+async function saveSample(obj){
+  const db = await openDB();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction('samples','readwrite');
+    const store = tx.objectStore('samples');
+    store.put(obj);
+    tx.oncomplete = ()=>res(true);
+    tx.onerror = e=>rej(e);
+  });
+}
+async function listSamples(){
+  const db = await openDB();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction('samples','readonly');
+    const store = tx.objectStore('samples');
+    const r = store.getAll();
+    r.onsuccess = ()=>res(r.result);
+    r.onerror = e=>rej(e);
+  });
+}
+
+/* --- UI bindings --- */
+const stateBadge = document.getElementById('stateBadge');
+const codeIn = document.getElementById('codeIn');
+const resultsEl = document.getElementById('results');
+const actionsEl = document.getElementById('actions');
+const auditEl = document.getElementById('audit');
+const fileIn = document.getElementById('fileIn');
+const loopToggle = document.getElementById('loopToggle');
+const intervalSel = document.getElementById('intervalSel');
+const policyEditor = document.getElementById('policyEditor');
+
+let LOOP_MS = parseInt(intervalSel.value,10);
+intervalSel.addEventListener('change', e=>{ LOOP_MS = parseInt(e.target.value,10); log(`Intervalo: ${LOOP_MS}ms`); });
+
+let loopOn = loopToggle.checked;
+loopToggle.addEventListener('change', e=>{ loopOn = e.target.checked; log(`Bucle ${(loopOn?'ON':'OFF')}`); });
+
+document.getElementById('btnClear').onclick = ()=>{ codeIn.value=''; resultsEl.textContent=''; actionsEl.textContent=''; log('Entrada limpiada'); };
+document.getElementById('btnExport').onclick = exportReport;
+document.getElementById('btnBootstrap').onclick = async ()=>{
+  const html = document.documentElement.outerHTML;
+  const hash = await sha256_base64_of_string(html);
+  await navigator.clipboard.writeText(hash);
+  alert('Hash calculado y copiado al portapapeles:\\n'+hash+'\\n\\nEdita EXPECTED_DOC_SHA256 en la cabecera del archivo con ese valor y recarga para activar el modo inmutable.');
+};
+
+fileIn.addEventListener('change', async e=>{
+  const files = Array.from(e.target.files);
+  for(const f of files){
+    const text = await f.text();
+    codeIn.value += `\\n\\n/* --- ${f.name} --- */\\n` + text;
+    log(`Archivo ${f.name} añadido a entrada.`);
+  }
+});
+
+/* --- Política por defecto --- */
+const POLICY_DEFAULT = {
+  version:1,
+  rules:[
+    {id:"js-eval",desc:"Uso de eval/Function",detect:["eval(","new Function("], severity:"critical"},
+    {id:"js-obf",desc:"Ofuscación / cadenas base64 largas",detect:["atob(","btoa(","base64","=="], severity:"warning",threshold:200},
+    {id:"net-call",desc:"Llamadas de red (fetch/XHR/WebSocket)",detect:["fetch(","XMLHttpRequest(","WebSocket("], severity:"warning"},
+    {id:"py-system",desc:"Python: subprocess/os.system",detect:["subprocess","os.system","Popen("], severity:"critical"},
+    {id:"sh-pipe",desc:"Pipeline curl/wget | sh",detect:["curl ","wget ","| sh","|bash"], severity:"critical"}
+  ],
+  actions:{
+    critical:["quarantine","blockRuntimeDangerous"],
+    warning:["sandbox","log"],
+    info:["log"]
+  }
+};
+function loadDefaultPolicy(){ policyEditor.value = JSON.stringify(POLICY_DEFAULT,null,2); }
+document.getElementById('btnResetPolicy').onclick = loadDefaultPolicy;
+loadDefaultPolicy();
+
+/* --- Registro (auditoría) --- */
+function log(msg){
+  const t = new Date().toISOString();
+  auditEl.textContent += `[${t}] ${msg}\\n`;
+  auditEl.scrollTop = auditEl.scrollHeight;
+}
+
+/* --- Inmutabilidad: verifica el SHA de este documento --- */
+async function verifyImmutable(){
+  try{
+    const html = document.documentElement.outerHTML;
+    const actual = await sha256_base64_of_string(html);
+    if(EXPECTED_DOC_SHA256 === EXPECTED_DOC_SHA256_PLACEHOLDER){
+      stateBadge.textContent = 'Bootstrap: fija hash'; stateBadge.className='badge warn';
+      log('Modo bootstrap activo: fija hash para activar inmutabilidad.');
+      return false;
+    }
+    const ok = (actual === EXPECTED_DOC_SHA256);
+    stateBadge.textContent = ok? 'Inmutable ✓' : 'Integridad NO coincide';
+    stateBadge.className = 'badge ' + (ok? 'ok':'danger');
+    if(!ok){ log('ERROR: integridad del documento NO coincide. Abortando ejecución de módulos peligrosos.'); }
+    return ok;
+  }catch(e){
+    log('Error verificando inmutabilidad: '+e);
+    return false;
+  }
+}
+
+/* --- Heurísticas y analizador ligero --- */
+function analyzeStatic(code, policy){
+  const findings = [];
+  // simple: check each rule token
+  for(const rule of policy.rules){
+    let hit=false; let details=[];
+    for(const tok of rule.detect){
+      if(code.includes(tok)){ hit=true; details.push(tok); }
+    }
+    // long base64 heuristic
+    if(rule.id==='js-obf'){
+      const longb64 = /[A-Za-z0-9+/=]{200,}/.test(code);
+      if(longb64) { hit=true; details.push('long_base64'); }
+    }
+    if(hit) findings.push({rule:rule.id,desc:rule.desc,details,severity:rule.severity || rule.sev || 'info'});
+  }
+  // extra pattern checks
+  if(/eval\s*\(/.test(code)) findings.push({rule:'eval',desc:'eval() detectado',severity:'critical'});
+  if(/new\s+Function\s*\(/.test(code)) findings.push({rule:'function_ctor',desc:'Function constructor',severity:'critical'});
+  if(/XMLHttpRequest|fetch\s*\(/.test(code)) findings.push({rule:'net',desc:'Llamada de red',severity:'warning'});
+  if(/subprocess|os\.system|Popen\(/.test(code)) findings.push({rule:'py_sub',desc:'subprocess en Python',severity:'critical'});
+  if(/curl\s+.*\|\s*(sh|bash)/.test(code)) findings.push({rule:'pipe',desc:'curl|sh pipeline',severity:'critical'});
+  return findings;
+}
+
+/* --- Runtime mitigations (in-page only) --- */
+function blockDangerousRuntime(){
+  try{
+    // override eval and Function inside this page context
+    window.eval = function(){ throw new Error('eval bloqueado por TigoStart'); };
+    window.Function = function(){ throw new Error('Function constructor bloqueado por TigoStart'); };
+    log('Runtime: eval/Function bloqueados en este contexto.');
+  }catch(e){ log('No se pudo aplicar parche runtime: '+e.message); }
+}
+
+/* --- Sandbox execution for analysis (iframe blob sandbox) --- */
+async function runInSandbox(code){
+  // Create blob URL with strict CSP-less HTML and sandboxed iframe set to allow-scripts but no top-navigation
+  const blobHtml = `<!doctype html><html><body><script>try{ ${code} }catch(e){ parent.postMessage({type:'sandboxError',err:e.toString()},'*') } parent.postMessage({type:'sandboxDone'},'*')</script></body></html>`;
+  const blob = new Blob([blobHtml],{type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  return new Promise((res)=>{
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('sandbox','allow-scripts');
+    iframe.style.display='none';
+    document.body.appendChild(iframe);
+    function onMessage(e){
+      if(e.data && (e.data.type==='sandboxDone' || e.data.type==='sandboxError')){
+        window.removeEventListener('message', onMessage);
+        document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+        res(e.data);
+      }
+    }
+    window.addEventListener('message', onMessage);
+    iframe.src = url;
+  });
+}
+
+/* --- Pyodide optional: disabled by default (requires network) --- */
+/* We deliberately do NOT auto-load Pyodide to avoid remote loads. Admins can uncomment and host Pyodide locally. */
+
+/* --- Core tick (bucle) --- */
+let timer=null;
+async function tick(){
+  try{
+    if(!loopOn) return schedule();
+    const ok = await verifyImmutable();
+    if(!ok) return schedule();
+    const code = codeIn.value || '';
+    if(!code.trim()){ resultsEl.textContent='Sin entrada.'; actionsEl.textContent='Ninguna'; return schedule(); }
+
+    let policy;
+    try{ policy = JSON.parse(policyEditor.value); }catch(e){ policy = POLICY_DEFAULT; policyEditor.value = JSON.stringify(policy,null,2); log('Policy JSON inválido; restaurado por defecto.'); }
+
+    const findings = analyzeStatic(code, policy);
+    // run a light sandbox for JS snippets (no network & isolated)
+    let sandboxRes = null;
+    if(!findings.some(f=>f.severity==='critical')){ // avoid running if critical found
+      sandboxRes = await runInSandbox(code);
+    }
+
+    // render results
+    if(findings.length===0 && (!sandboxRes || sandboxRes.type==='sandboxDone')){
+      resultsEl.textContent = '[OK] No se detectaron patrones conocidos. Sandbox OK.';
+      actionsEl.textContent = 'logOnly';
+    } else {
+      resultsEl.textContent = findings.map(f=>`[${f.severity.toUpperCase()}] ${f.rule} — ${f.desc} ${f.details? ' ('+f.details.join(',')+')':''}`).join('\\n');
+      // decide actions
+      const sev = findings.some(f=>f.severity==='critical')? 'critical' : (findings.some(f=>f.severity==='warning')? 'warning' : 'info');
+      const acts = [];
+      if(sev==='critical'){ acts.push('quarantine'); acts.push('blockRuntimeDangerous'); }
+      else if(sev==='warning'){ acts.push('sandbox'); acts.push('log'); }
+      else acts.push('logOnly');
+      actionsEl.textContent = acts.join('\\n');
+
+      // perform quarantines and runtime mitigations for critical
+      if(sev==='critical'){
+        // store sample to IndexedDB with metadata
+        const sample = {
+          id: 'sample-'+Date.now(),
+          ts: new Date().toISOString(),
+          codeSnippet: code.slice(0,20000),
+          findings,
+          source: 'manual',
+          hash: await sha256_base64_of_string(code)
+        };
+        await saveSample(sample);
+        log('Muestra cuarentenada: '+sample.id);
+        // apply runtime block in-page (non-persistent across reload)
+        blockDangerousRuntime();
+      }
+    }
+  } catch(e){
+    log('Error en tick: '+(e && e.message? e.message : e));
+  } finally {
+    schedule();
+  }
+}
+function schedule(){ clearTimeout(timer); timer = setTimeout(tick, LOOP_MS); }
+
+/* --- Export / Reports --- */
+async function exportReport(){
+  const samples = await listSamples();
+  const report = {
+    ts: new Date().toISOString(),
+    docHashExpected: EXPECTED_DOC_SHA256,
+    samples,
+    audit: auditEl.textContent.split('\\n').slice(-100)
+  };
+  const blob = new Blob([JSON.stringify(report,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tigostart-report-'+Date.now()+'.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  log('Reporte exportado.');
+}
+
+/* --- Startup --- */
+(function init(){
+  log('Inicializando TigoStart (modo defensivo).');
+  // start loop
+  schedule();
+  // periodically show number of quarantined samples
+  setInterval(async ()=>{
+    try{
+      const arr = await listSamples();
+      const msg = `Quarantine: ${arr.length} muestras`;
+      const badge = document.getElementById('stateBadge');
+      badge.textContent = (badge.textContent.split('|')[0] || badge.textContent) + ' | ' + msg;
+    }catch(e){}
+  }, 10000);
+})();
+</script>
+</body>
+</html>
