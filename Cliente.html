@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Registro / Login WebAuthn (Demo seguro)</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,16px;padding:20px}
+  button{margin:8px 0;padding:8px 12px}
+  pre{background:#f3f3f3;padding:10px;border-radius:6px}
+</style>
+</head>
+<body>
+  <h1>WebAuthn (registro / autenticación)</h1>
+
+  <h2>1) Consentimiento</h2>
+  <p>Antes de continuar, confirme que tiene autorización escrita de la persona cuyos datos serán utilizados.</p>
+  <label><input id="consent" type="checkbox"> Tengo consentimiento explícito</label>
+
+  <h2>2) Registro</h2>
+  <input id="username" placeholder="usuario (ej: fernando)" />
+  <button id="btnRegister">Solicitar opción de registro</button>
+  <pre id="outRegister"></pre>
+
+  <h2>3) Autenticación</h2>
+  <input id="usernameLogin" placeholder="usuario (ej: fernando)" />
+  <button id="btnLogin">Solicitar opción de login</button>
+  <pre id="outLogin"></pre>
+
+<script>
+async function postJson(url, body){
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+function bufferToBase64(b){
+  return btoa(String.fromCharCode(...new Uint8Array(b)));
+}
+function base64ToBuffer(b64){
+  const s = atob(b64);
+  const a = new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++) a[i]=s.charCodeAt(i);
+  return a.buffer;
+}
+
+document.getElementById('btnRegister').onclick = async ()=>{
+  if(!document.getElementById('consent').checked){
+    alert('Necesitas consentimiento explícito antes de registrar.');
+    return;
+  }
+  const username = document.getElementById('username').value || 'fernando';
+  // 1) pedir opciones al servidor
+  const opts = await postJson('/register/options', {username});
+  // convert challenge and user.id from base64 to ArrayBuffer
+  opts.publicKey.challenge = base64ToBuffer(opts.publicKey.challenge);
+  opts.publicKey.user.id = base64ToBuffer(opts.publicKey.user.id);
+  // if excludeCredentials present convert ids
+  if(opts.publicKey.excludeCredentials){
+    opts.publicKey.excludeCredentials = opts.publicKey.excludeCredentials.map(c=>{
+      return { ...c, id: base64ToBuffer(c.id) };
+    });
+  }
+  let cred;
+  try {
+    cred = await navigator.credentials.create(opts);
+  } catch(e){
+    document.getElementById('outRegister').textContent = 'Error create(): '+e;
+    return;
+  }
+  // prepare data to send to server
+  const toSend = {
+    id: cred.id,
+    rawId: bufferToBase64(cred.rawId),
+    response: {
+      clientDataJSON: bufferToBase64(cred.response.clientDataJSON),
+      attestationObject: bufferToBase64(cred.response.attestationObject)
+    },
+    type: cred.type
+  };
+  const verification = await postJson('/register/complete', {username, credential: toSend});
+  document.getElementById('outRegister').textContent = JSON.stringify(verification, null, 2);
+};
+
+document.getElementById('btnLogin').onclick = async ()=>{
+  const username = document.getElementById('usernameLogin').value || 'fernando';
+  const opts = await postJson('/login/options', {username});
+  opts.publicKey.challenge = base64ToBuffer(opts.publicKey.challenge);
+  if(opts.publicKey.allowCredentials){
+    opts.publicKey.allowCredentials = opts.publicKey.allowCredentials.map(c=>{
+      return {...c, id: base64ToBuffer(c.id)};
+    });
+  }
+  let assertion;
+  try {
+    assertion = await navigator.credentials.get(opts);
+  } catch(e){
+    document.getElementById('outLogin').textContent = 'Error get(): '+e;
+    return;
+  }
+  const toSend = {
+    id: assertion.id,
+    rawId: bufferToBase64(assertion.rawId),
+    response: {
+      clientDataJSON: bufferToBase64(assertion.response.clientDataJSON),
+      authenticatorData: bufferToBase64(assertion.response.authenticatorData),
+      signature: bufferToBase64(assertion.response.signature),
+      userHandle: assertion.response.userHandle ? bufferToBase64(assertion.response.userHandle) : null
+    },
+    type: assertion.type
+  };
+  const verification = await postJson('/login/complete', {username, credential: toSend});
+  document.getElementById('outLogin').textContent = JSON.stringify(verification, null, 2);
+};
+</script>
+</body>
+</html>
