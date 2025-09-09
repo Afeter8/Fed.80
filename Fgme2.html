@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FGME-AutoRun — Sistema Inmutable IA</title>
+  <meta name="author" content="Fernando Guadalupe Mendez Espinoza" />
+  <meta name="description" content="FGME - Sistema inmutable, rotativo y autoejecutable para entrenamiento IA en bucle eterno." />
+  <style>
+    :root{
+      --bg:#051923; --card:#0c2d48; --accent:#2e8bc0; --muted:#b1d4e0; --good:#43aa8b; --bad:#f94144;
+      --glass: rgba(255,255,255,0.03);
+      --warning: #f9c74f;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:Inter,ui-sans-serif,system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,var(--bg),#021018); color:var(--muted); padding:20px;}
+    .wrap{max-width:1100px;margin:0 auto}
+    header{display:flex;gap:16px;align-items:center;margin-bottom:18px}
+    .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#145da0);display:flex;align-items:center;justify-content:center;font-weight:800;color:#001;}
+    h1{font-size:1.4rem;margin:0}
+    p.lead{margin:6px 0 0;color:rgba(177,212,224,0.9)}
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
+    .card{background:var(--card);padding:16px;border-radius:10px;border:1px solid rgba(46,139,192,0.12);box-shadow: 0 6px 24px rgba(2,8,20,0.6)}
+    .small{font-size:0.86rem;color:rgba(177,212,224,0.8)}
+    .status-dot{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:8px}
+    button{background:linear-gradient(90deg,var(--accent),#145da0);border:0;padding:10px 12px;border-radius:8px;color:#001;font-weight:700;cursor:pointer;transition:all 0.2s ease}
+    button:hover{opacity:0.9;transform:translateY(-1px)}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    button.ghost:hover{background:rgba(255,255,255,0.05)}
+    button:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+    pre{background:var(--glass);padding:12px;border-radius:8px;overflow:auto;max-height:260px}
+    .modules{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px}
+    .module{background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.02);font-size:0.9rem;position:relative}
+    .module-status{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%}
+    .module-status.active{background:var(--good)}
+    .module-status.inactive{background:var(--bad)}
+    .module-status.pending{background:var(--warning)}
+    footer{margin-top:18px;color:rgba(177,212,224,0.6);font-size:0.86rem;text-align:center}
+    .log{font-family:monospace;white-space:pre-wrap;max-height:280px;overflow:auto;background:#021018;padding:12px;border-radius:8px;border:1px solid rgba(46,139,192,0.06)}
+    .danger{color:var(--bad)}
+    .good{color:var(--good)}
+    .warning{color:var(--warning)}
+    .progress-bar{height:4px;width:100%;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;margin-top:8px}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),#145da0);width:0%;transition:width 0.3s ease}
+    .pulse{animation:pulse 2s infinite}
+    @keyframes pulse{0%{opacity:1}50%{opacity:0.5}100%{opacity:1}}
+    /* responsive */
+    @media (max-width:960px){ .grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">FGME</div>
+      <div>
+        <h1>FGME AutoRun · Sistema Inmutable IA</h1>
+        <p class="lead">Archivo HTML auto-ejecutable — bucle eterno, código rotativo, validación de integridad y módulos para JS/JSON/Python/CSS/HTML.</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- MAIN -->
+      <section class="card" aria-live="polite">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div><span class="status-dot" id="dot-integrity" style="background:var(--bad)"></span><strong>Integridad:</strong> <span id="integrityText">No verificada</span></div>
+            <div class="small" style="margin-top:6px">Autor: <strong>Fernando Guadalupe Mendez Espinoza</strong></div>
+            <div class="progress-bar"><div class="progress-fill" id="integrity-progress"></div></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="btn-start">Iniciar Sistema</button>
+            <button id="btn-stop" class="ghost" style="display:none">Detener</button>
+            <button id="btn-emergency" class="ghost" style="display:none; border-color:var(--bad); color:var(--bad)">Parada Emergencia</button>
+          </div>
+        </div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)">
+
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="flex:1">
+            <h3 style="margin:0 0 8px">Registro / Log <span class="small">(<span id="log-count">0</span> eventos)</span></h3>
+            <div id="log" class="log">Sistema inactivo. Pulse "Iniciar Sistema".</div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <button id="btn-manual-rotate" class="ghost">Generar Rotación Manual</button>
+              <button id="btn-run-py" class="ghost">Ejecutar Python de Prueba</button>
+              <button id="btn-fetch-ipfs" class="ghost">Restaurar desde IPFS (CID)</button>
+              <button id="btn-export-log" class="ghost">Exportar Log</button>
+            </div>
+          </div>
+
+          <aside style="width:320px">
+            <div class="card" style="margin-bottom:10px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <strong>Estado IA</strong>
+                <span id="iaState" class="small">Detenido</span>
+              </div>
+              <div style="margin-top:8px">
+                <div class="modules">
+                  <div class="module">JS Runner ✔<span class="module-status inactive"></span></div>
+                  <div class="module">JSON Config ✔<span class="module-status inactive"></span></div>
+                  <div class="module">Pyodide (Python) ✳<span class="module-status inactive"></span></div>
+                  <div class="module">IPFS Stub ✳<span class="module-status inactive"></span></div>
+                  <div class="module">GitHub Stub ✳<span class="module-status inactive"></span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div style="display:flex;align-items:center;gap:10px">
+                <strong>Configuración</strong>
+                <span class="status-dot" id="config-status" style="background:var(--bad)"></span>
+              </div>
+              <pre id="config" style="margin-top:8px">
+{
+  "autor": "Fernando Guadalupe Mendez Espinoza",
+  "immutableSignature": "FGME-SIGN-V1-PLACEHOLDER",
+  "ipfsBackupCID": "",
+  "githubRepo": "",
+  "loopIntervalMs": 5000,
+  "enableAutoRepair": true,
+  "maxLogEntries": 1000
+}
+              </pre>
+              <div style="margin-top:8px;display:flex;gap:6px">
+                <button id="btn-edit-config" class="ghost">Editar Config</button>
+                <button id="btn-save-config" class="ghost">Guardar (local)</button>
+                <button id="btn-reset-config" class="ghost">Restablecer</button>
+              </div>
+            </div>
+
+          </aside>
+        </div>
+
+        <hr style="margin:14px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)">
+
+        <section>
+          <h3 style="margin:0 0 8px">Módulos Avanzados</h3>
+          <div class="modules">
+            <div class="module">Auto-Repair</div>
+            <div class="module">Rotating Code</div>
+            <div class="module">Integrity Checker</div>
+            <div class="module">Auto-Trainer</div>
+            <div class="module">Backup/IPFS</div>
+            <div class="module">Web3 Register</div>
+          </div>
+        </section>
+      </section>
+
+      <!-- SIDEBAR -->
+      <aside>
+        <div class="card">
+          <h3 style="margin:0 0 8px">Ejecutores Embebidos</h3>
+          <div class="small">Es posible ejecutar pequeños fragmentos integrados de los idiomas soportados.</div>
+          <div style="margin-top:12px">
+            <label class="small">JS Inline</label>
+            <textarea id="jsInline" style="width:100%;height:80px;background:#021018;color:var(--muted);border-radius:6px;padding:8px;border:1px solid rgba(255,255,255,0.02)">// Ejemplo: console.log('hello js')</textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button id="runJs">Run JS</button>
+              <button id="clearLog" class="ghost">Limpiar Log</button>
+            </div>
+
+            <div style="margin-top:12px">
+              <label class="small">JSON Config</label>
+              <textarea id="jsonInline" style="width:100%;height:80px;background:#021018;color:var(--muted);border-radius:6px;padding:8px;border:1px solid rgba(255,255,255,0.02)">{ "autoRepair": true }</textarea>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button id="applyJson" class="ghost">Aplicar JSON</button>
+              </div>
+            </div>
+
+            <div style="margin-top:12px">
+              <label class="small">Python (Pyodide)</label>
+              <textarea id="pyInline" style="width:100%;height:80px;background:#021018;color:var(--muted);border-radius:6px;padding:8px;border:1px solid rgba(255,255,255,0.02)">print('Hola desde Pyodide')</textarea>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button id="runPy" class="ghost">Run Python</button>
+                <button id="installPyPkg" class="ghost">Instalar Paquete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h4 style="margin:0 0 8px">Integraciones</h4>
+          <div class="small">IPFS / GitHub / Web3 — configure claves o CIDs con cuidado.</div>
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+            <input id="ipfsCID" placeholder="IPFS CID de backup (opcional)" style="padding:8px;border-radius:6px;background:#021018;border:1px solid rgba(255,255,255,0.02);color:var(--muted)">
+            <input id="githubToken" placeholder="GitHub Token (opcional)" style="padding:8px;border-radius:6px;background:#021018;border:1px solid rgba(255,255,255,0.02);color:var(--muted)">
+            <button id="btn-connect-ipfs" class="ghost">Conectar (simulación)</button>
+            <button id="btn-register-web3" class="ghost">Registrar Evento (simulación)</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h4 style="margin:0 0 8px">Estadísticas del Sistema</h4>
+          <div class="small" id="system-stats">
+            Ciclos ejecutados: 0<br>
+            Última rotación: Nunca<br>
+            Errores: 0<br>
+            Tiempo activo: 00:00:00
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer>
+      <div class="small">Este archivo es una base técnica para FGME-NET. Para integraciones reales (IPFS/GitHub/Web3) hay que añadir credenciales y nodos. Use responsablemente.</div>
+    </footer>
+  </div>
+
+  <!-- Carga diferida de Pyodide para mejor rendimiento -->
+  <script>
+    // Cargar Pyodide solo cuando sea necesario
+    let pyodideLoadPromise = null;
+    function loadPyodideWhenNeeded() {
+      if (!pyodideLoadPromise) {
+        pyodideLoadPromise = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/pyodide/v0.23.3/full/pyodide.js';
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Pyodide'));
+          document.head.appendChild(script);
+        });
+      }
+      return pyodideLoadPromise;
+    }
+  </script>
+
+  <!-- ---------- CORE SCRIPT: FGME AutoRun System MEJORADO ---------- -->
+  <script>
+  (function(){
+    // ---------- CONFIG y estado MEJORADO ----------
+    let state = {
+      running: false,
+      intervalId: null,
+      config: {
+        autor: "Fernando Guadalupe Mendez Espinoza",
+        immutableSignature: "FGME-SIGN-V1-PLACEHOLDER",
+        ipfsBackupCID: "",
+        githubRepo: "",
+        loopIntervalMs: 5000,
+        enableAutoRepair: true,
+        maxLogEntries: 1000
+      },
+      pyodide: null,
+      systemStats: {
+        cycles: 0,
+        lastRotation: null,
+        errors: 0,
+        startTime: null,
+        activeTime: 0
+      },
+      logEntries: 0
+    };
+
+    const $ = id => document.getElementById(id);
+    const logEl = $('log');
+    
+    // Función mejorada de registro con límite de entradas
+    const updateLog = (msg, type = 'info') => {
+      const ts = new Date().toLocaleString();
+      const prefix = type === 'error' ? '❌ ' : type === 'warning' ? '⚠️ ' : '✔ ';
+      const entry = ts + " - " + prefix + msg;
+      
+      // Mantener un máximo de entradas en el log
+      const lines = logEl.textContent.split('\n');
+      if (lines.length >= state.config.maxLogEntries) {
+        lines.pop();
+      }
+      
+      logEl.textContent = entry + "\n" + lines.join('\n');
+      state.logEntries++;
+      $('log-count').textContent = state.logEntries;
+      
+      // Scroll automático al nuevo mensaje
+      logEl.scrollTop = 0;
+    };
+
+    // Actualizar estadísticas del sistema
+    function updateStats() {
+      if (state.systemStats.startTime) {
+        const now = new Date();
+        const diff = Math.floor((now - state.systemStats.startTime) / 1000);
+        const hours = Math.floor(diff / 3600);
+        const minutes = Math.floor((diff % 3600) / 60);
+        const seconds = diff % 60;
+        state.systemStats.activeTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      }
+      
+      $('system-stats').innerHTML = `
+        Ciclos ejecutados: ${state.systemStats.cycles}<br>
+        Última rotación: ${state.systemStats.lastRotation || 'Nunca'}<br>
+        Errores: ${state.systemStats.errors}<br>
+        Tiempo activo: ${state.systemStats.activeTime}
+      `;
+    }
+
+    // ---------- UTIL: Immutable check MEJORADO ----------
+    async function checkImmutable() {
+      $('integrity-progress').style.width = '30%';
+      
+      // Verificación básica de autor
+      const expectedAuthor = state.config.autor;
+      const authorOk = expectedAuthor === "Fernando Guadalupe Mendez Espinoza";
+      
+      $('integrity-progress').style.width = '60%';
+      
+      // Verificación de estructura del documento (mejorada)
+      let structureOk = true;
+      try {
+        // Comprobar elementos críticos del DOM
+        if (!document.querySelector('.wrap') || 
+            !document.querySelector('header') || 
+            !document.querySelector('#log')) {
+          structureOk = false;
+        }
+      } catch (e) {
+        structureOk = false;
+      }
+      
+      $('integrity-progress').style.width = '90%';
+      
+      // Verificación de funciones críticas
+      const criticalFunctionsExist = typeof updateLog === 'function' && 
+                                     typeof checkImmutable === 'function' &&
+                                     typeof generateRotation === 'function';
+      
+      $('integrity-progress').style.width = '100%';
+      
+      const integrityOk = authorOk && structureOk && criticalFunctionsExist;
+      $('integrityText').innerText = integrityOk ? "Autenticidad OK" : "Firma no válida";
+      $('dot-integrity').style.backgroundColor = integrityOk ? 
+        getComputedStyle(document.documentElement).getPropertyValue('--good') : 
+        getComputedStyle(document.documentElement).getPropertyValue('--bad');
+      
+      // Pequeña animación de completado
+      setTimeout(() => {
+        $('integrity-progress').style.width = '0%';
+      }, 500);
+      
+      return integrityOk;
+    }
+
+    // ---------- ROTATION: Generar código rotativo seguro MEJORADO ----------
+    function generateRotation() {
+      // Usar Web Crypto API para mejor entropía cuando esté disponible
+      let entropy;
+      try {
+        const array = new Uint32Array(2);
+        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+          crypto.getRandomValues(array);
+          entropy = array[0].toString(36) + array[1].toString(36);
+        } else {
+          entropy = Math.floor(Math.random() * 1e9).toString(36);
+        }
+      } catch (e) {
+        entropy = Math.floor(Math.random() * 1e9).toString(36);
+      }
+      
+      const stamp = Date.now().toString(36);
+      const rotation = btoa(entropy + "-" + stamp).substr(0, 28);
+      
+      // Registrar y actualizar estadísticas
+      state.systemStats.lastRotation = new Date().toLocaleTimeString();
+      updateLog("Rotación generada: " + rotation);
+      
+      return rotation;
+    }
+
+    // ---------- AUTO-TRAIN: Simulación de paso de entrenamiento MEJORADA ----------
+    async function autoTrainStep() {
+      updateLog("AutoTrain: recopilando datos...");
+
+      try {
+        // Simular diferentes fases de entrenamiento
+        const phases = [
+          "preprocesamiento de datos",
+          "cálculo de gradientes",
+          "actualización de pesos",
+          "validación del modelo"
+        ];
+        
+        for (const phase of phases) {
+          updateLog(`AutoTrain: fase de ${phase}...`);
+          // Simular tiempo de procesamiento
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        
+        updateLog("AutoTrain: ciclo de entrenamiento completado ✔");
+      } catch(e){
+        state.systemStats.errors++;
+        updateLog("AutoTrain ERROR: " + String(e), 'error');
+      }
+    }
+
+    // ---------- AUTO-REPAIR: Restauración desde IPFS fallback MEJORADA ----------
+    async function autoRepair() {
+      if (!state.config.enableAutoRepair) {
+        updateLog("AutoRepair: función deshabilitada en configuración", 'warning');
+        return false;
+      }
+      
+      const cid = $('ipfsCID').value || state.config.ipfsBackupCID;
+      if (!cid) {
+        updateLog("AutoRepair: no hay CID configurado. Saltando reparación.", 'warning');
+        return false;
+      }
+      
+      updateLog("AutoRepair: intentando restaurar desde IPFS CID: " + cid);
+      
+      try {
+        // Simulación más realista con diferentes etapas
+        const stages = [
+          "Conectando con nodo IPFS...",
+          "Descargando datos de respaldo...",
+          "Verificando integridad del respaldo...",
+          "Restaurando sistema..."
+        ];
+        
+        for (const stage of stages) {
+          updateLog(stage);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        updateLog("AutoRepair: restauración completada con éxito ✔");
+        return true;
+      } catch (e) {
+        state.systemStats.errors++;
+        updateLog("AutoRepair ERROR: " + String(e), 'error');
+        return false;
+      }
+    }
+
+    // ---------- PYODIDE: ejecutar código python MEJORADO ----------
+    async function ensurePyodide() {
+      if (state.pyodide) return state.pyodide;
+      
+      try {
+        updateLog("Cargando Pyodide (Python en navegador)...");
+        await loadPyodideWhenNeeded();
+        
+        if (window.loadPyodide) {
+          state.pyodide = await loadPyodide({
+            indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.3/full/",
+            stdout: msg => updateLog("Python: " + msg),
+            stderr: msg => updateLog("Python ERROR: " + msg, 'error')
+          });
+          
+          updateLog("Pyodide listo. Instalando paquetes básicos...");
+          await state.pyodide.loadPackage(["numpy", "micropip"]);
+          updateLog("Pyodide inicializado correctamente ✔");
+          
+          // Actualizar estado del módulo
+          document.querySelectorAll('.module-status')[2].className = 'module-status active';
+          
+          return state.pyodide;
+        } else {
+          throw new Error("Pyodide no disponible después de la carga");
+        }
+      } catch (e) {
+        state.systemStats.errors++;
+        updateLog("Error al cargar Pyodide: " + String(e), 'error');
+        return null;
+      }
+    }
+
+    // ---------- LOOP CORE MEJORADO ----------
+    async function coreLoop() {
+      if (!state.running) return;
+      
+      try {
+        state.systemStats.cycles++;
+        
+        if (!await checkImmutable()) {
+          updateLog("WARNING: integridad fallida. Iniciando auto-reparación...", 'warning');
+          const ok = await autoRepair();
+          if (!ok) {
+            updateLog("Auto-repair falló. Deteniendo sistema autoejecutable.", 'error');
+            stopSystem();
+            return;
+          }
+          // Después de reparar, verificar de nuevo
+          if (!await checkImmutable()) {
+            updateLog("ERROR: El sistema no pudo repararse. Deteniendo.", 'error');
+            stopSystem();
+            return;
+          }
+        }
+        
+        // Rotación de código
+        const rotation = generateRotation();
+
+        // Ejecutar paso de entrenamiento
+        await autoTrainStep();
+
+        // Ejecutar comprobaciones de salud, uso de recursos y limpiar caches (simulado)
+        updateLog("Health Check: OK · Memoria simulada estable.");
+
+        // Registrar evento (simulación de Web3 commit)
+        updateLog("Registro: evento de ciclo creado (simulación).");
+        
+      } catch (e) {
+        state.systemStats.errors++;
+        updateLog("ERROR en ciclo principal: " + String(e), 'error');
+        
+        // En caso de error persistente, detener el sistema después de 5 errores
+        if (state.systemStats.errors >= 5) {
+          updateLog("DEMASIADOS ERRORES. Sistema en parada de emergencia.", 'error');
+          stopSystem();
+        }
+      }
+      
+      updateStats();
+    }
+
+    function startSystem() {
+      if (state.running) return;
+      
+      state.running = true;
+      state.systemStats.startTime = new Date();
+      state.systemStats.cycles = 0;
+      state.systemStats.errors = 0;
+      
+      $('btn-start').style.display = 'none';
+      $('btn-stop').style.display = 'inline-block';
+      $('btn-emergency').style.display = 'inline-block';
+      $('iaState').innerText = "En ejecución";
+      $('iaState').className = 'good';
+      
+      updateLog("Sistema arrancando...");
+      
+      // Iniciar verificaciones de módulos
+      document.querySelectorAll('.module-status').forEach((el, idx) => {
+        el.className = 'module-status pending';
+        setTimeout(() => {
+          el.className = idx < 2 ? 'module-status active' : 'module-status inactive';
+        }, 500 + (idx * 200));
+      });
+      
+      checkImmutable();
+      
+      // comenzar bucle
+      state.intervalId = setInterval(coreLoop, state.config.loopIntervalMs);
+      coreLoop(); // primera ejecución inmediata
+      
+      // Actualizar estadísticas cada segundo
+      state.statsInterval = setInterval(updateStats, 1000);
+    }
+
+    function stopSystem() {
+      if (!state.running) return;
+      
+      state.running = false;
+      if (state.intervalId) {
+        clearInterval(state.intervalId); 
+        state.intervalId = null;
+      }
+      if (state.statsInterval) {
+        clearInterval(state.statsInterval);
+        state.statsInterval = null;
+      }
+      
+      $('btn-start').style.display = 'inline-block';
+      $('btn-stop').style.display = 'none';
+      $('btn-emergency').style.display = 'none';
+      $('iaState').innerText = "Detenido";
+      $('iaState').className = '';
+      
+      updateLog("Sistema detenido por el usuario.");
+      updateStats();
+    }
+
+    function emergencyStop() {
+      updateLog("PARADA DE EMERGENCIA ACTIVADA", 'error');
+      stopSystem();
+      
+      // Deshabilitar todos los botones excepto inicio
+      document.querySelectorAll('button').forEach(btn => {
+        if (btn.id !== 'btn-start') {
+          btn.disabled = true;
+        }
+      });
+      
+      setTimeout(() => {
+        document.querySelectorAll('button').forEach(btn => {
+          btn.disabled = false;
+        });
+        updateLog("Controles reestablecidos después de parada de emergencia");
+      }, 3000);
+    }
+
+    // ---------- UI hooks MEJORADOS ----------
+    $('btn-start').addEventListener('click', startSystem);
+    $('btn-stop').addEventListener('click', stopSystem);
+    $('btn-emergency').addEventListener('click', emergencyStop);
+    $('btn-manual-rotate').addEventListener('click', () => { generateRotation(); });
+    
+    $('runJs').addEventListener('click', () => {
+      const code = $('jsInline').value;
+      try {
+        updateLog("Ejecutando JS inline...");
+        // eslint-disable-next-line no-eval
+        const res = eval("(function(){ " + code + " })();");
+        updateLog("JS result: " + String(res));
+      } catch (e) { 
+        state.systemStats.errors++;
+        updateLog("JS error: " + String(e), 'error'); 
+      }
+    });
+    
+    $('clearLog').addEventListener('click', () => { 
+      logEl.textContent = ''; 
+      state.logEntries = 0;
+      $('log-count').textContent = '0';
+      updateLog("Log limpiado manualmente");
+    });
+
+    $('applyJson').addEventListener('click', () => {
+      try {
+        const j = JSON.parse($('jsonInline').value);
+        state.config = Object.assign(state.config, j);
+        $('config').textContent = JSON.stringify(state.config, null, 2);
+        updateLog("JSON aplicado a configuración.");
+        $('config-status').style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--good');
+      } catch(e) { 
+        state.systemStats.errors++;
+        updateLog("Error JSON: " + String(e), 'error'); 
+      }
+    });
+
+    $('runPy').addEventListener('click', async () => {
+      const py = $('pyInline').value;
+      const pyodide = await ensurePyodide();
+      if (!pyodide) { 
+        updateLog("Pyodide no disponible.", 'error'); 
+        return; 
+      }
+      try {
+        updateLog("Ejecutando Python...");
+        const out = await pyodide.runPythonAsync(py);
+        updateLog("Python result: " + String(out));
+      } catch(e) { 
+        state.systemStats.errors++;
+        updateLog("Python error: " + String(e), 'error'); 
+      }
+    });
+    
+    $('installPyPkg').addEventListener('click', async () => {
+      const pkg = prompt("Nombre del paquete PyPI a instalar:", "pandas");
+      if (!pkg) return;
+      
+      const pyodide = await ensurePyodide();
+      if (!pyodide) { 
+        updateLog("Pyodide no disponible.", 'error'); 
+        return; 
+      }
+      
+      try {
+        updateLog(`Instalando paquete Python: ${pkg}...`);
+        await pyodide.loadPackage('micropip');
+        const micropip = pyodide.pyimport('micropip');
+        await micropip.install(pkg);
+        updateLog(`Paquete ${pkg} instalado correctamente ✔`);
+      } catch(e) { 
+        state.systemStats.errors++;
+        updateLog("Error instalando paquete: " + String(e), 'error'); 
+      }
+    });
+
+    // Simulaciones de integraciones
+    $('btn-connect-ipfs').addEventListener('click', () => {
+      updateLog("IPFS: conexión simulada. En producción configure js-ipfs o ipfs-http-client.");
+    });
+    
+    $('btn-register-web3').addEventListener('click', () => {
+      updateLog("Web3: evento simulado registrado. Para producción integre Web3.js/ethers y una wallet segura.");
+    });
+    
+    $('btn-fetch-ipfs').addEventListener('click', async () => {
+      const cid = $('ipfsCID').value || state.config.ipfsBackupCID;
+      if (!cid) { 
+        updateLog("No hay CID. Configure un CID de backup.", 'warning'); 
+        return; 
+      }
+      updateLog("Simulación: restaurando desde IPFS CID: " + cid);
+      // en producción -> fetch desde gateway o usar ipfs client
+      updateLog("Restauración (simulada) completada.");
+    });
+    
+    $('btn-export-log').addEventListener('click', () => {
+      const logContent = logEl.textContent;
+      const blob = new Blob([logContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fgme-log-${new Date().toISOString().slice(0, 10)}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      updateLog("Log exportado como archivo de texto");
+    });
+
+    // Guardar config en localStorage
+    $('btn-save-config').addEventListener('click', () => {
+      localStorage.setItem('fgme_config', JSON.stringify(state.config));
+      updateLog("Configuración guardada en localStorage.");
+      $('config-status').style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--good');
+    });
+    
+    $('btn-edit-config').addEventListener('click', () => {
+      const current = JSON.stringify(state.config, null, 2);
+      const newVal = prompt("Editar configuración (JSON):", current);
+      if (!newVal) return;
+      try {
+        const parsed = JSON.parse(newVal);
+        state.config = parsed;
+        $('config').textContent = JSON.stringify(state.config, null, 2);
+        updateLog("Configuración editada manualmente.");
+        $('config-status').style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--warning');
+      } catch(e) { 
+        state.systemStats.errors++;
+        updateLog("Error al parsear JSON: " + String(e), 'error'); 
+      }
+    });
+    
+    $('btn-reset-config').addEventListener('click', () => {
+      if (confirm("¿Restablecer configuración a valores predeterminados?")) {
+        state.config = {
+          autor: "Fernando Guadalupe Mendez Espinoza",
+          immutableSignature: "FGME-SIGN-V1-PLACEHOLDER",
+          ipfsBackupCID: "",
+          githubRepo: "",
+          loopIntervalMs: 5000,
+          enableAutoRepair: true,
+          maxLogEntries: 1000
+        };
+        $('config').textContent = JSON.stringify(state.config, null, 2);
+        updateLog("Configuración restablecida a valores predeterminados.");
+        $('config-status').style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--bad');
+      }
+    });
+
+    // Restore config from storage on load
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem('fgme_config');
+      if (saved) {
+        try { 
+          state.config = Object.assign(state.config, JSON.parse(saved)); 
+          $('config').textContent = JSON.stringify(state.config, null, 2); 
+          updateLog("Configuración restaurada desde localStorage."); 
+          $('config-status').style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--good');
+        } catch(e){
+          state.systemStats.errors++;
+          updateLog("Error al cargar configuración guardada: " + String(e), 'error');
+        }
+      }
+      
+      // Security: prevent being embedded remotely (clickjacking minimal)
+      if (window.top !== window.self) {
+        updateLog("Aviso: el sistema no debe correr embebido en iframe por seguridad.", 'warning');
+      }
+      
+      // Iniciar actualización de estadísticas
+      setInterval(updateStats, 1000);
+    });
+
+  })();
+  </script>
+</body>
+</html>
