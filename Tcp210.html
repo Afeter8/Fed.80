@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Expansión - Star Tigo & Tigo Star</title>
+    
+    <!-- Estilos internos -->
+    <style>
+        body {
+            background: #0a0a0a;
+            color: #00ffcc;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #00ffcc;
+            text-shadow: 0px 0px 8px #00ffaa;
+        }
+        .btn {
+            background: #111;
+            color: #00ffcc;
+            border: 2px solid #00ffaa;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+        .btn:hover {
+            background: #00ffaa;
+            color: #111;
+        }
+        .log {
+            background: #111;
+            color: #0f0;
+            padding: 15px;
+            margin-top: 20px;
+            height: 200px;
+            overflow-y: auto;
+            border: 2px solid #00ffaa;
+            border-radius: 8px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🌐 Sistema Expansión - Star Tigo & Tigo Star</h1>
+    <button class="btn" onclick="iniciarConexion()">Iniciar Conexión</button>
+    <button class="btn" onclick="rotarCodigo()">Rotar Código</button>
+    <button class="btn" onclick="activarDefensa()">Activar Defensa</button>
+
+    <div class="log" id="log"></div>
+
+    <script>
+        // Log automático
+        function log(mensaje) {
+            let logBox = document.getElementById("log");
+            let timestamp = new Date().toLocaleTimeString();
+            logBox.innerHTML += `[${timestamp}] ${mensaje}<br>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // Conexión automática estable
+        function iniciarConexion() {
+            log("🔗 Conexión establecida con nodos Star Tigo y Tigo Star...");
+            setInterval(() => {
+                log("📡 Transmisión de datos estable en bucle eterno...");
+            }, 5000);
+        }
+
+        // Código rotativo de protección
+        function rotarCodigo() {
+            let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
+            let codigo = "";
+            for (let i = 0; i < 16; i++) {
+                codigo += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            log("🔄 Código rotativo generado: " + codigo);
+        }
+
+        // Defensa automática
+        function activarDefensa() {
+            log("🛡️ Sistema de defensa activado en bucle eterno...");
+            setInterval(() => {
+                log("⚔️ Defensa en ejecución... Sistemas protegidos.");
+            }, 7000);
+        }
+
+        // Autoejecución en bucle eterno
+        window.onload = () => {
+            log("🚀 Sistema iniciado en modo autónomo e inmutable.");
+        }
+    </script>
+
+</body>
+</html>
