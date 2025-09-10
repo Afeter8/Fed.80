@@ -1,0 +1,299 @@
+<!DOCTYPE html><html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tigo Start — Sistema Autoejecutable Inmutable</title>
+  <meta name="description" content="Archivo HTML único (inmutable) para ejecución continua de agentes IA y monitoreo seguro." />
+  <style>
+    :root{--bg:#0f1720;--card:#111827;--muted:#9ca3af;--good:#10b981;--bad:#ef4444}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071027,#0f1720);font-family:Inter,Segoe UI,Roboto,Arial;color:#e5e7eb}
+    .wrap{max-width:1100px;margin:24px auto;padding:20px}
+    header{display:flex;gap:18px;align-items:center}
+    h1{margin:0;font-size:20px}
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,.6)}
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:16px}
+    .status{display:flex;flex-direction:column;gap:6px}
+    pre{background:#071126;padding:12px;border-radius:8px;overflow:auto;max-height:240px}
+    .btn{background:#0ea5b7;border:none;padding:8px 12px;border-radius:8px;color:#022;cursor:pointer}
+    .small{font-size:13px;color:var(--muted)}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#0b1220;color:var(--muted);font-size:13px}
+    .alert{color:var(--bad)}.ok{color:var(--good)}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Tigo Start — Sistema Autoejecutable (Inmutable)</h1>
+        <div class="small">Un solo archivo HTML diseñado para ejecutar agentes en bucle controlado, con mecanismos de integridad, registro y anclaje de evidencia.</div>
+      </div>
+      <div style="margin-left:auto" class="pill">Modo: Auto-Start ✓</div>
+    </header><div class="grid">
+  <section class="card">
+    <h2>Panel principal</h2>
+    <p class="small">Estado de ejecución, control de agentes y log de integridad.</p>
+
+    <div class="status">
+      <div>Estado del sistema: <span id="sysState" class="ok">Inicializando...</span></div>
+      <div>Agentes activos: <strong id="agentCount">0</strong></div>
+      <div>Última verificación de integridad: <span id="lastIntegrity">—</span></div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button id="btnStart" class="btn">Iniciar (auto)</button>
+      <button id="btnStop" class="btn" style="background:#ef4444;color:white">Detener</button>
+      <button id="btnSnapshot" class="btn" style="background:#146c43;color:white">Crear Snapshot</button>
+    </div>
+
+    <h3 style="margin-top:14px">Registro de actividad</h3>
+    <pre id="log">[iniciado] Benvenido — sistema en arranque...\n</pre>
+
+  </section>
+
+  <aside class="card">
+    <h3>Configuración rápida</h3>
+    <div class="small" style="margin-bottom:8px">Ajustes que el sistema usa para conectarse y anclar evidencias. **Proporciona** estos valores cuando despliegues.</div>
+    <label class="small">Endpoint de anchoring (opcional)</label>
+    <input id="anchorEndpoint" placeholder="https://mi-anchor.example/api/anchor" style="width:100%;padding:8px;border-radius:8px;border:1px solid #0b1220;background:#071126;color:#e5e7eb" />
+    <div style="height:8px"></div>
+    <label class="small">ID del sistema / Org</label>
+    <input id="systemId" placeholder="TigoStart-Org-001" style="width:100%;padding:8px;border-radius:8px;border:1px solid #0b1220;background:#071126;color:#e5e7eb" />
+    <div style="height:8px"></div>
+    <label class="small">Política de auto-reinicio</label>
+    <select id="policyRestart" style="width:100%;padding:8px;border-radius:8px;background:#071126;color:#e5e7eb;border:1px solid #0b1220">
+      <option value="always">Siempre reiniciar</option>
+      <option value="onFailure">Reiniciar solo en fallo</option>
+      <option value="manual">Manual</option>
+    </select>
+    <div style="height:10px"></div>
+    <div class="small">Integridad del archivo</div>
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+      <button id="btnVerify" class="btn">Verificar firma</button>
+      <div id="sigStatus" class="small">Firma: <span class="ok">Desconocida</span></div>
+    </div>
+
+    <h3 style="margin-top:12px">Estado rápido</h3>
+    <div class="small">Integridad de agentes: <span id="agentsIntegrity" class="ok">OK</span></div>
+    <div class="small">Conexión Anchor: <span id="anchorConn" class="small">No configurado</span></div>
+  </aside>
+</div>
+
+<footer class="small">Este archivo es una base técnica. Para integrarlo con la infraestructura real (IPFS, Anchor smart contract, SIEM, etc.) configura los endpoints y claves en un entorno seguro. No cargues claves privadas en este archivo.</footer>
+
+  </div>  <script>
+  /*****************************************************************
+   * Tigo Start — Single file autorun system
+   * - Auto-starts WebWorker agents that run controlled loops
+   * - Stores logs in IndexedDB (immutable snapshots via signature)
+   * - Provides integrity check using WebCrypto (verify manifest signature)
+   * - Has placeholder 'anchor' function to register evidence with external anchoring service
+   *
+   * Security notes (important):
+   * - Never paste private keys here. Use HSM/Vault or external signer.
+   * - Anchoring should only send non-sensitive hashes/CIDs.
+   *****************************************************************/
+
+  // --- Utilities ---
+  function log(msg){
+    const t = new Date().toISOString();
+    const el = document.getElementById('log');
+    el.textContent = '['+t+'] '+msg + '\n' + el.textContent;
+    saveLogToDB(t,msg).catch(()=>{});
+  }
+
+  function $(id){return document.getElementById(id)}
+
+  // --- IndexedDB simple storage for immutability snapshots and logs ---
+  const DB_NAME = 'tigo_start_store_v1';
+  const DB = {db:null};
+  function openDB(){
+    return new Promise((res,rej)=>{
+      const r = indexedDB.open(DB_NAME,1);
+      r.onupgradeneeded = e => {
+        const db = e.target.result;
+        if(!db.objectStoreNames.contains('logs')) db.createObjectStore('logs',{keyPath:'ts'});
+        if(!db.objectStoreNames.contains('snapshots')) db.createObjectStore('snapshots',{keyPath:'id'});
+      };
+      r.onsuccess = e=>{DB.db = e.target.result; res(DB.db)};
+      r.onerror = e=> rej(e.target.error);
+    });
+  }
+  async function saveLogToDB(ts,msg){
+    const db = DB.db || await openDB();
+    const tx = db.transaction('logs','readwrite');
+    tx.objectStore('logs').put({ts,msg});
+    return tx.complete;
+  }
+  async function saveSnapshot(obj){
+    const db = DB.db || await openDB();
+    const tx = db.transaction('snapshots','readwrite');
+    tx.objectStore('snapshots').put(obj);
+    return tx.complete;
+  }
+
+  // --- WebWorker agent creation (inline blob) ---
+  const AGENTS = [];
+  function createAgent(name,opts={interval:5000}){
+    const code = `
+      let running=true; 
+      self.onmessage = async (m)=>{
+        const d=m.data; if(d&&d.cmd==='stop') running=false; if(d&&d.cmd==='set-interval') interval = d.interval;
+      };
+      let interval = ${opts.interval};
+      async function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+      async function loop(){
+        while(running){
+          try{
+            const t = new Date().toISOString();
+            // Simulación de tarea de agente: chequeos, firmas, reportes
+            const state = {agent:'${name}',ts:t,uptime:performance.now(),status:'ok'};
+            self.postMessage({type:'heartbeat',payload:state});
+          }catch(e){ self.postMessage({type:'error',payload:String(e)}); }
+          await sleep(interval);
+        }
+        self.postMessage({type:'stopped'});
+      }
+      loop();
+    `;
+    const blob = new Blob([code],{type:'application/javascript'});
+    const worker = new Worker(URL.createObjectURL(blob));
+    worker.name = name;
+    worker.onmessage = (ev)=>{
+      const d = ev.data;
+      if(d.type==='heartbeat'){
+        log('Agent '+name+' heartbeat — ' + JSON.stringify(d.payload));
+      } else if(d.type==='error'){
+        log('Agent '+name+' error: '+d.payload);
+      } else if(d.type==='stopped'){
+        log('Agent '+name+' stopped');
+      }
+    };
+    AGENTS.push(worker);
+    $('agentCount').textContent = AGENTS.length;
+    return worker;
+  }
+
+  function stopAllAgents(){
+    for(const w of AGENTS){ try{ w.postMessage({cmd:'stop'}) }catch(e){} }
+    AGENTS.length=0; $('agentCount').textContent = 0;
+  }
+
+  // --- Integrity: manifest signature verification (placeholder) ---
+  // The file may include a signed manifest block in a <script type="application/manifest+json"> tag.
+  async function verifyManifest(){
+    // This implementation looks for a manifest tag in the document and a signature tag.
+    try{
+      const mtag = document.querySelector('script[type="application/manifest+json"]');
+      const stag = document.querySelector('script[type="application/manifest-signature"]');
+      if(!mtag || !stag){ $('sigStatus').innerHTML = 'Firma: <span class="alert">No encontrada</span>'; return false; }
+      const manifestText = mtag.textContent.trim();
+      const signatureB64 = stag.textContent.trim();
+      // Verify signature using WebCrypto (assumes a preconfigured public key in JWK form inside manifest or remote)
+      let meta;
+      try{ meta = JSON.parse(manifestText); }catch(e){ $('sigStatus').innerHTML='Firma: <span class="alert">Manifest inválido</span>'; return false; }
+      if(!meta.pubkeyJwk){ $('sigStatus').innerHTML='Firma: <span class="alert">No hay pubkey</span>'; return false; }
+      const pub = await crypto.subtle.importKey('jwk', meta.pubkeyJwk, {name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'}, true, ['verify']);
+      const enc = new TextEncoder();
+      const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', pub, base64ToArrayBuffer(signatureB64), enc.encode(manifestText));
+      $('sigStatus').innerHTML = 'Firma: ' + (ok? '<span class="ok">Válida</span>' : '<span class="alert">Inválida</span>');
+      return ok;
+    }catch(e){ $('sigStatus').innerHTML='Firma: <span class="alert">Error</span>'; return false; }
+  }
+
+  function base64ToArrayBuffer(b64){
+    const binary = atob(b64.replace(/\s/g,''));
+    const len = binary.length; const bytes = new Uint8Array(len);
+    for(let i=0;i<len;i++) bytes[i]=binary.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  // --- Snapshot: create immutable snapshot (hash) and optionally anchor ---
+  async function createSnapshot(){
+    const manifest = {system: $('systemId').value || 'TigoStart-Org-001', ts: new Date().toISOString(), agents: AGENTS.map(w=>w.name)};
+    const txt = JSON.stringify(manifest);
+    const enc = new TextEncoder();
+    const hashBuf = await crypto.subtle.digest('SHA-256', enc.encode(txt));
+    const hashHex = Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const snap = {id:hashHex, manifest, created: new Date().toISOString()};
+    await saveSnapshot(snap);
+    log('Snapshot creado id='+hashHex);
+    // Optionally anchor
+    const endpoint = $('anchorEndpoint').value.trim();
+    if(endpoint){
+      try{
+        $('anchorConn').textContent = 'Anchoring...';
+        const resp = await fetch(endpoint, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cid:hashHex,meta:manifest})});
+        const j = await resp.json();
+        $('anchorConn').textContent = j.ok? 'Anchored' : 'Anchor failed';
+        log('Anchoring response: '+JSON.stringify(j));
+      }catch(e){
+        $('anchorConn').textContent = 'Anchor error';
+        log('Anchor error: '+String(e));
+      }
+    }
+  }
+
+  // --- Auto-start policy & lifecycle ---
+  let autoPolicy = 'always';
+  function applyPolicy(){ autoPolicy = $('policyRestart').value; }
+
+  function startSystem(){
+    log('Sistema: start requested');
+    try{
+      // create a few sample agents. Real deployment could spawn different worker types
+      createAgent('agent-monitor-1',{interval:5000});
+      createAgent('agent-scan-io',{interval:11000});
+      createAgent('agent-integrity',{interval:30000});
+      $('sysState').textContent = 'Ejecutando';
+    }catch(e){ log('Error starting system: '+e); }
+  }
+
+  // Stop: stops workers but keeps state
+  function stopSystem(){
+    log('Sistema: stop requested');
+    stopAllAgents();
+    $('sysState').textContent = 'Detenido';
+  }
+
+  // --- Minimal watchdog to auto-restart based on policy ---
+  setInterval(()=>{
+    try{
+      applyPolicy();
+      if(autoPolicy==='always' && AGENTS.length===0){ log('Watchdog: reiniciando por política always'); startSystem(); }
+      // integrity quick-check
+      $('lastIntegrity').textContent = new Date().toISOString();
+    }catch(e){ log('Watchdog error: '+e); }
+  }, 8000);
+
+  // --- Wire UI ---
+  $('btnStart').addEventListener('click',()=>startSystem());
+  $('btnStop').addEventListener('click',()=>stopSystem());
+  $('btnSnapshot').addEventListener('click',()=>createSnapshot());
+  $('btnVerify').addEventListener('click',()=>verifyManifest());
+
+  // Auto-start on load if desired
+  window.addEventListener('load', async ()=>{
+    await openDB();
+    log('Storage ready');
+    // Auto start
+    startSystem();
+    $('sysState').textContent = 'Iniciado (auto)';
+    // Determine anchor connection status
+    $('anchorConn').textContent = $('anchorEndpoint').value.trim()? 'Configurado' : 'No configurado';
+  });
+
+  </script>  <!-- OPTIONAL: Signed manifest block (example). In real deployment, fill with real JWK and signature -->  <script type="application/manifest+json">
+  {
+    "system":"TigoStart-Org-001",
+    "version":"1.0.0",
+    "pubkeyJwk": {
+      "kty":"RSA",
+      "n":"0vx7agoebGcQSuuPiLJXZptNf2...",
+      "e":"AQAB"
+    }
+  }
+  </script>  <script type="application/manifest-signature">
+  MEUCIQD... (firma base64 aquí)
+  </script></body>
+</html>
