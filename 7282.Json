@@ -1,0 +1,10 @@
+{
+  "owner": "Fernando Guadalupe Mendez Espinoza",
+  "timestamp": 1694000000,
+  "artifacts": [
+    {"path":"index.html","sha512":"..."},
+    {"path":"rotate/rotate_service.py","sha512":"..."}
+  ],
+  "notes":"Manifest inicial",
+  "hmac":"<to-be-calculated-server-side>"
+}
