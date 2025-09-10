@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Star Tigo — Núcleo Inmutable de Defensa (POC Mejorado)</title>
+<style>
+  :root {
+    --bg: #071018;
+    --card: #0e1b25;
+    --accent: #00d1b2;
+    --muted: #88b6ac;
+    --danger: #8b2d2d;
+    --warning: #8b7d2d;
+    --success: #2d8b4a;
+    --ai-primary: #9c27b0;
+    --ai-secondary: #673ab7;
+  }
+  
+  html, body {
+    height: 100%;
+    margin: 0;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg, #031018, #081a24);
+    color: #dff6f0;
+  }
+  
+  header {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  h1 {
+    margin: 0;
+    color: var(--accent);
+    font-size: 1.8rem;
+  }
+  
+  main {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 16px;
+    padding: 16px;
+    height: calc(100% - 160px);
+  }
+  
+  .card {
+    background: var(--card);
+    padding: 16px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    overflow: auto;
+  }
+  
+  .small {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  
+  label {
+    display: block;
+    margin: 8px 0;
+  }
+  
+  input[type="text"], input[type="number"], input[type="password"], select, textarea {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+    color: inherit;
+    margin-top: 4px;
+  }
+  
+  input:focus, select:focus, textarea:focus {
+    outline: 1px solid var(--accent);
+  }
+  
+  button {
+    background: var(--accent);
+    color: #012;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-right: 6px;
+    transition: all 0.2s ease;
+  }
+  
+  button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  
+  button.ghost {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--accent);
+  }
+  
+  button.danger {
+    background: var(--danger);
+    color: white;
+  }
+  
+  button.warning {
+    background: var(--warning);
+    color: white;
+  }
+  
+  button.success {
+    background: var(--success);
+    color: white;
+  }
+  
+  button.ai {
+    background: var(--ai-primary);
+    color: white;
+  }
+  
+  #filesList {
+    max-height: 260px;
+    overflow: auto;
+    border-radius: 6px;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.2);
+    margin-top: 8px;
+  }
+  
+  .fileRow {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    align-items: center;
+  }
+  
+  .fileRow:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  
+  .muted {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  
+  pre {
+    white-space: pre-wrap;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 12px;
+    border-radius: 6px;
+    max-height: 320px;
+    overflow: auto;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+  
+  footer {
+    padding: 10px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: #002a24;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    margin-left: 6px;
+  }
+  
+  .flex {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  
+  .grid3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  
+  hr {
+    border: none;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.05);
+    margin: 16px 0;
+  }
+  
+  .status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  
+  .status-up {
+    background: var(--success);
+  }
+  
+  .status-down {
+    background: var(--danger);
+  }
+  
+  .status-warning {
+    background: var(--warning);
+  }
+  
+  .ai-section {
+    border-left: 3px solid var(--ai-primary);
+    padding-left: 12px;
+    margin: 16px 0;
+    background: rgba(156, 39, 176, 0.05);
+  }
+  
+  .tab-container {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 12px;
+  }
+  
+  .tab {
+    padding: 8px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  
+  .tab.active {
+    border-bottom: 2px solid var(--accent);
+    color: var(--accent);
+  }
+  
+  .tab-content {
+    display: none;
+  }
+  
+  .tab-content.active {
+    display: block;
+  }
+  
+  .threat-level {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+  
+  .threat-low {
+    background: rgba(45, 139, 74, 0.2);
+    color: var(--success);
+  }
+  
+  .threat-medium {
+    background: rgba(139, 125, 45, 0.2);
+    color: var(--warning);
+  }
+  
+  .threat-high {
+    background: rgba(139, 45, 45, 0.2);
+    color: var(--danger);
+  }
+  
+  .progress-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+  
+  .defense-shield {
+    text-align: center;
+    padding: 12px;
+    border: 1px solid rgba(0, 209, 178, 0.2);
+    border-radius: 8px;
+    margin: 12px 0;
+    background: rgba(0, 209, 178, 0.05);
+  }
+  
+  .defense-shield h4 {
+    margin: 0 0 8px 0;
+    color: var(--accent);
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 1000px) {
+    main {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Star Tigo — Núcleo Inmutable de Defensa (POC Mejorado)</h1>
+  <div class="small">Sistema avanzado con IA integrada, análisis de amenazas en tiempo real, defensas cibernéticas mejoradas y monitorización continua</div>
+</header>
+
+<main>
+  <section class="card" aria-label="control-panel" id="leftPanel">
+    <h2>Control de Seguridad</h2>
+    <div class="small">Clave secreta (ROT_KEY) — <strong>nunca compartir</strong>. En producción usa Vault/HSM con rotación automática.</div>
+    
+    <label>Clave secreta (ROT_KEY)
+      <input id="rotKey" type="password" placeholder="Introduce ROT_KEY (clave secreta)" autocomplete="off"/>
+    </label>
+    
+    <div class="flex">
+      <button id="btnGenerateKey" class="ai" title="Generar clave segura">Generar clave segura</button>
+      <button id="btnToggleKeyVisibility" class="ghost">Mostrar/Ocultar</button>
+    </div>
+
+    <label>Modo de rotación
+      <select id="mode">
+        <option value="right">Rotar caracteres → derecha (char shift)</option>
+        <option value="left">Rotar caracteres ← izquierda (char shift)</option>
+        <option value="up">Rotar líneas ↑ (line shift)</option>
+        <option value="down">Rotar líneas ↓ (line shift)</option>
+        <option value="binary_left">Rotar bits (bytes left)</option>
+        <option value="binary_right">Rotar bits (bytes right)</option>
+        <option value="aes256">Cifrado AES-256 (avanzado)</option>
+        <option value="xor">XOR con clave (simple)</option>
+      </select>
+    </label>
+
+    <label>Parámetro (n)
+      <input id="param" type="number" value="1" min="1" />
+    </label>
+    
+    <label>Nivel de defensa
+      <select id="defenseLevel">
+        <option value="basic">Básico (solo rotación)</option>
+        <option value="standard" selected>Estándar (HMAC + verificación)</option>
+        <option value="advanced">Avanzado (detección de intrusos + IA)</option>
+        <option value="paranoid">Paranoico (múltiples capas + engaño)</option>
+      </select>
+    </label>
+
+    <div class="grid2">
+      <button id="btnRotate" title="Generar rotated/manifest.json">Rotar archivos (ejecutar)</button>
+      <button id="btnUnrotate" class="ghost" title="Desrotar usando manifest y ROT_KEY">Desrotar (reconstruir)</button>
+    </div>
+
+    <hr/>
+
+    <h3>Archivos</h3>
+    <div class="small">Carga uno o varios archivos (texto o binarios). Se guardan en la sesión (memoria del navegador) con cifrado.</div>
+    <label>
+      <input id="fileInput" type="file" multiple />
+    </label>
+    <div id="filesList" aria-live="polite"></div>
+
+    <div style="margin-top:10px">
+      <button id="btnExportManifest" class="ghost">Descargar manifest.json</button>
+      <button id="btnDownloadAll" class="ghost">Descargar archivos rotados</button>
+      <button id="btnClear" class="danger">Limpiar sesión</button>
+    </div>
+
+    <hr/>
+    
+    <div class="ai-section">
+      <h3>Asistente de IA para Defensa</h3>
+      <div class="small">Analiza tus archivos y configuraciones para recomendar estrategias de defensa óptimas.</div>
+      
+      <div class="grid2">
+        <button id="btnAnalyzeConfig" class="ai">Analizar configuración</button>
+        <button id="btnOptimizeDefense" class="ai">Optimizar defensas</button>
+      </div>
+      
+      <label>Consulta a la IA
+        <textarea id="aiQuery" placeholder="Pregunta a la IA sobre estrategias de defensa..." rows="2"></textarea>
+      </label>
+      <button id="btnAskAI" class="ai" style="width:100%">Consultar IA</button>
+    </div>
+
+    <hr/>
+    
+    <h3>Simuladores</h3>
+    <div class="small">Simula la creación de una rama rotativa en GitHub y la creación de checks en ClouDNS.</div>
+    <label>Nombre repo (simulado)
+      <input id="repoName" type="text" placeholder="fgm/proyecto-demo" />
+    </label>
+    <div class="flex">
+      <button id="btnSimBranch">Simular GitHub rotativo</button>
+      <button id="btnSimCloudns" class="ghost">Simular ClouDNS checks</button>
+    </div>
+
+    <hr/>
+    
+    <h3>Auto-bucle de defensa</h3>
+    <div class="small">Bucle de verificación automática (comprueba HMAC, SHA-512, detección de anomalías y repara automáticamente).</div>
+    <div class="flex">
+      <label><input id="autoVerify" type="checkbox"> Activar verificación periódica</label>
+      <label style="margin-left:auto">Intervalo (seg): <input id="verifyInterval" type="number" value="20" min="5" style="width:70px"/></label>
+    </div>
+    
+    <div class="flex">
+      <label><input id="autoAnomalyDetection" type="checkbox"> Detección de anomalías</label>
+      <label><input id="autoRepair" type="checkbox"> Reparación automática</label>
+    </div>
+
+    <hr/>
+    
+    <h3>Registro / Auditoría</h3>
+    <div class="small">Logs locales (sesión) con filtrado y capacidades de búsqueda. Todos los logs están cifrados.</div>
+    
+    <div class="flex">
+      <button id="btnClearLogs" class="ghost">Limpiar logs</button>
+      <button id="btnExportLogs" class="ghost">Exportar logs</button>
+      <button id="btnSearchLogs" class="ghost">Buscar en logs</button>
+    </div>
+    
+    <input type="text" id="logSearch" placeholder="Buscar en logs..." style="margin-top:8px">
+    
+    <pre id="logWindow">— logs —</pre>
+  </section>
+
+  <section class="card" id="rightPanel">
+    <div class="tab-container">
+      <div class="tab active" data-tab="status">Estado</div>
+      <div class="tab" data-tab="tools">Herramientas</div>
+      <div class="tab" data-tab="ai">Asistente IA</div>
+      <div class="tab" data-tab="defense">Defensas</div>
+    </div>
+    
+    <div class="tab-content active" id="status-tab">
+      <h2>Estado del Sistema</h2>
+      
+      <div class="grid3">
+        <div class="defense-shield">
+          <h4>Integridad</h4>
+          <div class="status-indicator status-up"></div> Estable
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 95%"></div>
+          </div>
+        </div>
+        
+        <div class="defense-shield">
+          <h4>Confidencialidad</h4>
+          <div class="status-indicator status-warning"></div> Parcial
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 75%"></div>
+          </div>
+        </div>
+        
+        <div class="defense-shield">
+          <h4>Disponibilidad</h4>
+          <div class="status-indicator status-up"></div> Óptima
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 98%"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="grid2">
+        <div>
+          <h3>Manifest (preview)</h3>
+          <pre id="manifestPreview">— manifest vacío —</pre>
+        </div>
+        <div>
+          <h3>Verificación</h3>
+          <div class="small">Resultado de verificación HMAC + comprobación de hashes SHA-512 por archivo.</div>
+          <pre id="verifyResult">— nada —</pre>
+        </div>
+      </div>
+
+      <hr/>
+      
+      <h3>Análisis de Amenazas</h3>
+      <div class="small">Monitoreo en tiempo real de posibles amenazas y vulnerabilidades detectadas.</div>
+      
+      <div id="threatsContainer">
+        <div class="fileRow">
+          <div class="flex">
+            <div class="status-indicator status-down"></div>
+            <div>Sin análisis de amenazas realizado</div>
+          </div>
+          <span class="threat-level threat-low">Baja</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="tab-content" id="tools-tab">
+      <h2>Herramientas de Seguridad</h2>
+      
+      <h3>Detalles del archivo seleccionado</h3>
+      <div style="display:flex;gap:8px">
+        <select id="selFile" style="width:60%"></select>
+        <button id="btnView" class="ghost">Ver contenido</button>
+        <button id="btnDownload" class="ghost">Descargar original</button>
+      </div>
+      <pre id="fileContent">Selecciona un archivo para ver su contenido (texto) o información (binario).</pre>
+
+      <hr/>
+      
+      <h3>Análisis de Hashes</h3>
+      <div class="small">Compara hashes entre diferentes versiones de archivos para detectar modificaciones.</div>
+      
+      <div class="flex">
+        <select id="hashFileSelect"></select>
+        <button id="btnCalculateHash" class="ghost">Calcular Hash</button>
+      </div>
+      
+      <pre id="hashResult">— resultado hash —</pre>
+
+      <hr/>
+      
+      <h3>Simulador de nodos de monitoreo (ClouDNS)</h3>
+      <div class="small">Lista de nodos simulados y últimas comprobaciones (UP/DOWN). Esto es una simulación local para pruebas.</div>
+      <div id="nodesList"></div>
+    </div>
+    
+    <div class="tab-content" id="ai-tab">
+      <h2>Asistente de IA para Ciberseguridad</h2>
+      
+      <div class="ai-section">
+        <h3>Análisis Inteligente</h3>
+        <div class="small">La IA analiza tus configuraciones y archivos para identificar vulnerabilidades y recomendar mejoras.</div>
+        
+        <div id="aiAnalysisResult">
+          <p>Ejecuta un análisis para obtener recomendaciones de seguridad personalizadas.</p>
+        </div>
+        
+        <button id="btnRunFullAnalysis" class="ai" style="width:100%">Ejecutar análisis completo</button>
+      </div>
+      
+      <hr/>
+      
+      <h3>Recomendaciones de IA</h3>
+      <div class="small">Sugerencias basadas en las mejores prácticas de seguridad actuales.</div>
+      
+      <div id="aiRecommendations">
+        <div class="fileRow">
+          <div class="flex">
+            <div class="status-indicator status-warning"></div>
+            <div>Usa claves de más de 16 caracteres con símbolos, números y letras</div>
+          </div>
+        </div>
+        
+        <div class="fileRow">
+          <div class="flex">
+            <div class="status-indicator status-up"></div>
+            <div>Activa la verificación automática para monitoreo continuo</div>
+          </div>
+        </div>
+        
+        <div class="fileRow">
+          <div class="flex">
+            <div class="status-indicator status-warning"></div>
+            <div>Considera implementar cifrado AES-256 para archivos críticos</div>
+          </div>
+        </div>
+      </div>
+      
+      <hr/>
+      
+      <h3>Historial de Consultas</h3>
+      <div class="small">Registro de interacciones previas con el asistente de IA.</div>
+      
+      <div id="aiHistory">
+        <p>No hay consultas recientes.</p>
+      </div>
+    </div>
+    
+    <div class="tab-content" id="defense-tab">
+      <h2>Sistemas de Defensa</h2>
+      
+      <h3>Capas de Defensa Activadas</h3>
+      <div class="small">Sistemas de protección actualmente implementados en esta sesión.</div>
+      
+      <div id="activeDefenses">
+        <div class="fileRow">
+          <div class="flex">
+            <div class="status-indicator status-up"></div>
+            <div>Cifrado de archivos con rotación personalizable</div>
+          </div>
+        </div>
+        
+        <div class="fileRow">
+          <div class="flex">
+            <div class="status-indicator status-up"></div>
+            <div>Verificación de integridad con HMAC-SHA512</div>
+          </div>
+        </div>
+        
+        <div class="fileRow">
+          <div class="flex">
+            <div class="status-indicator status-up"></div>
+            <div>Almacenamiento seguro en sesión (memoria)</div>
+          </div>
+        </div>
+        
+        <div class="fileRow">
+          <div class="flex">
+            <div class="status-indicator status-down"></div>
+            <div>Detección de anomalías con IA (inactivo)</div>
+          </div>
+          <button class="ghost" style="font-size:0.7rem">Activar</button>
+        </div>
+        
+        <div class="fileRow">
+          <div class="flex">
+            <div class="status-indicator status-down"></div>
+            <div>Sistema de engaño (honeypot) (inactivo)</div>
+          </div>
+          <button class="ghost" style="font-size:0.7rem">Activar</button>
+        </div>
+      </div>
+      
+      <hr/>
+      
+      <h3>Configuración de Defensas Avanzadas</h3>
+      <div class="small">Ajustes para las capacidades defensivas avanzadas del sistema.</div>
+      
+      <label>
+        <input type="checkbox" id="chkBehaviorAnalysis"> Análisis de comportamiento para detección de anomalías
+      </label>
+      
+      <label>
+        <input type="checkbox" id="chkThreatIntel"> Integrar con fuentes de inteligencia de amenazas
+      </label>
+      
+      <label>
+        <input type="checkbox" id="chkAutoIsolate"> Aislamiento automático de archivos sospechosos
+      </label>
+      
+      <label>
+        <input type="checkbox" id="chkHoneypot"> Activar sistema de engaño (honeypot)
+      </label>
+      
+      <div class="flex">
+        <button id="btnSaveDefenseConfig" class="success">Guardar configuración</button>
+        <button id="btnResetDefenseConfig" class="ghost">Restablecer</button>
+      </div>
+      
+      <hr/>
+      
+      <h3>Simulador de Ataques</h3>
+      <div class="small">Prueba las defensas del sistema con diferentes vectores de ataque simulados.</div>
+      
+      <select id="attackSimSelector">
+        <option value="tampering">Manipulación de archivos</option>
+        <option value="keyleak">Filtración de clave</option>
+        <option value="bruteforce">Ataque de fuerza bruta</option>
+        <option value="replay">Ataque de repetición</option>
+      </select>
+      
+      <button id="btnRunAttackSim" class="warning" style="width:100%; margin-top:8px">Ejecutar simulación de ataque</button>
+      
+      <pre id="attackSimResult">— resultados de simulación —</pre>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="small">Sistema de defensa mejorado con IA - Desarrollado para Fernando Guadalupe Méndez Espinoza — Star Tigo • Nunca compartas la ROT_KEY públicamente.</div>
+</footer>
+
+<script>
+// =============================================================================
+// Módulo de Utilidades Mejorado
+// =============================================================================
+const CryptoUtils = {
+  async sha512ArrayBuffer(buf) {
+    const h = await crypto.subtle.digest('SHA-512', buf);
+    return this.hex(new Uint8Array(h));
+  },
+  
+  hex(byteArray) {
+    return Array.from(byteArray).map(b => b.toString(16).padStart(2,'0')).join('');
+  },
+  
+  async hmacSha512(keyStr, dataBytes) {
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey('raw', enc.encode(keyStr), 
+              {name:'HMAC', hash:'SHA-512'}, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', key, dataBytes);
+    return this.hex(new Uint8Array(sig));
+  },
+  
+  ab2str(buf) {
+    try { return new TextDecoder().decode(buf); } catch(e){ return null; }
+  },
+  
+  str2ab(str) { 
+    return new TextEncoder().encode(str).buffer; 
+  },
+  
+  async generateSecureKey(length = 32) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
+    const values = crypto.getRandomValues(new Uint32Array(length));
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars[values[i] % chars.length];
+    }
+    return result;
+  },
+  
+  async deriveKeyFromPassword(password, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      enc.encode(password),
+      {name: 'PBKDF2'},
+      false,
+      ['deriveKey']
+    );
+    
+    return crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: enc.encode(salt),
+        iterations: 100000,
+        hash: 'SHA-256'
+      },
+      keyMaterial,
+      {name: 'AES-GCM', length: 256},
+      false,
+      ['encrypt', 'decrypt']
+    );
+  },
+  
+  async encryptAES(data, key) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt(
+      {name: 'AES-GCM', iv},
+      key,
+      data
+    );
+    
+    // Combine IV and encrypted data
+    const result = new Uint8Array(iv.length + encrypted.byteLength);
+    result.set(iv, 0);
+    result.set(new Uint8Array(encrypted), iv.length);
+    
+    return result.buffer;
+  },
+  
+  async decryptAES(data, key) {
+    const iv = new Uint8Array(data.slice(0, 12));
+    const encrypted = data.slice(12);
+    
+    return crypto.subtle.decrypt(
+      {name: 'AES-GCM', iv},
+      key,
+      encrypted
+    );
+  }
+};
+
+// =============================================================================
+// Módulo de IA y Análisis
+// =============================================================================
+const AIAnalyzer = {
+  analyzeConfiguration(config, files) {
+    const recommendations = [];
+    let score = 85; // Base score
+    
+    // Check key strength
+    if (config.key && config.key.length < 12) {
+      recommendations.push({
+        type: 'warning',
+        message: 'La clave es demasiado corta (mínimo recomendado: 12 caracteres)',
+        priority: 'high'
+      });
+      score -= 15;
+    } else if (config.key && config.key.length >= 16) {
+      recommendations.push({
+        type: 'success',
+        message: 'Clave con longitud adecuada para entornos de producción',
+        priority: 'low'
+      });
+      score += 5;
+    }
+    
+    // Check rotation mode
+    if (config.mode === 'binary_left' || config.mode === 'binary_right') {
+      recommendations.push({
+        type: 'info',
+        message: 'Modo de rotación binaria seleccionado - adecuado para archivos binarios',
+        priority: 'medium'
+      });
+    }
+    
+    // Check if binary files are present with text rotation
+    let hasBinaryFiles = false;
+    for (const [name, meta] of files) {
+      if (!meta.isText && (config.mode === 'left' || config.mode === 'right' || 
+          config.mode === 'up' || config.mode === 'down')) {
+        hasBinaryFiles = true;
+      }
+    }
+    
+    if (hasBinaryFiles) {
+      recommendations.push({
+        type: 'warning',
+        message: 'Archivos binarios detectados con modo de rotación de texto - considere cambiar a rotación binaria',
+        priority: 'medium'
+      });
+      score -= 10;
+    }
+    
+    // Check defense level
+    if (config.defenseLevel === 'basic') {
+      recommendations.push({
+        type: 'warning',
+        message: 'Nivel de defensa básico - considere usar al menos nivel estándar',
+        priority: 'high'
+      });
+      score -= 10;
+    } else if (config.defenseLevel === 'advanced' || config.defenseLevel === 'paranoid') {
+      recommendations.push({
+        type: 'success',
+        message: 'Nivel de defensa avanzado activado',
+        priority: 'low'
+      });
+      score += 5;
+    }
+    
+    // Ensure score is within bounds
+    score = Math.max(0, Math.min(100, score));
+    
+    return { recommendations, score };
+  },
+  
+  generateThreatReport(files, manifest) {
+    const threats = [];
+    
+    // Check for potentially sensitive file names
+    const sensitivePatterns = [/password/i, /secret/i, /key/i, /token/i, /credential/i];
+    
+    for (const [name] of files) {
+      for (const pattern of sensitivePatterns) {
+        if (pattern.test(name)) {
+          threats.push({
+            type: 'sensitive_name',
+            file: name,
+            severity: 'medium',
+            message: `El nombre del archivo "${name}" puede contener información sensible`
+          });
+          break;
+        }
+      }
+    }
+    
+    // Check if HMAC is missing
+    if (manifest && !manifest.hmac) {
+      threats.push({
+        type: 'no_hmac',
+        severity: 'high',
+        message: 'El manifest no tiene HMAC - la integridad no puede verificarse'
+      });
+    }
+    
+    return threats;
+  },
+  
+  async processAIQuery(query, context) {
+    // Simulate AI processing with a delay
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+    
+    const responses = {
+      default: "Como asistente de seguridad, recomiendo siempre usar claves fuertes, mantener actualizaciones regulares y realizar auditorías periódicas de seguridad.",
+      clave: "Para una clave segura, use al menos 16 caracteres con una mezcla de mayúsculas, minúsculas, números y símbolos. Considere usar un generador de claves.",
+      rotación: "La rotación de caracteres es buena para texto, pero para datos binarios use rotación binaria. Para máxima seguridad, use AES-256.",
+      hmac: "HMAC-SHA512 verifica la integridad de sus datos. Siempre active esta opción para entornos de producción.",
+      detección: "La detección de anomalías puede identificar cambios sospechosos en tiempo real. Actívela para monitoreo continuo.",
+      backup: "Mantenga siempre copias de seguridad de sus datos originales en ubicaciones seguras y separadas.",
+      producción: "Para entornos de producción, use siempre servidores seguros, HSMs para claves y auditorías regulares."
+    };
+    
+    // Find the most relevant response
+    let bestMatch = 'default';
+    for (const [key, value] of Object.entries(responses)) {
+      if (query.toLowerCase().includes(key)) {
+        bestMatch = key;
+        break;
+      }
+    }
+    
+    return {
+      response: responses[bestMatch],
+      timestamp: new Date().toISOString()
+    };
+  }
+};
+
+// =============================================================================
+// Almacenamiento Seguro Mejorado
+// =============================================================================
+const SecureStore = {
+  files: new Map(),
+  rotated: new Map(),
+  backups: new Map(),
+  manifest: null,
+  manifestHmac: null,
+  defenseConfig: {
+    level: 'standard',
+    anomalyDetection: false,
+    autoRepair: false,
+    behaviorAnalysis: false,
+    threatIntel: false,
+    autoIsolate: false,
+    honeypot: false
+  },
+  aiHistory: [],
+  
+  // Encryption for sensitive data in memory
+  async encryptData(data, key) {
+    try {
+      const derivedKey = await CryptoUtils.deriveKeyFromPassword(key, 'secure_salt');
+      return await CryptoUtils.encryptAES(data, derivedKey);
+    } catch (e) {
+      console.error("Encryption error:", e);
+      return data; // Fallback to unencrypted
+    }
+  },
+  
+  async decryptData(data, key) {
+    try {
+      const derivedKey = await CryptoUtils.deriveKeyFromPassword(key, 'secure_salt');
+      return await CryptoUtils.decryptAES(data, derivedKey);
+    } catch (e) {
+      console.error("Decryption error:", e);
+      return data; // Fallback to unencrypted
+    }
+  }
+};
+
+// =============================================================================
+// Sistema de Rotación Mejorado
+// =============================================================================
+const RotationSystem = {
+  CHARSET: Array.from((() => {
+    const base = [];
+    for(let i=32;i<127;i++) base.push(String.fromCharCode(i));
+    base.push('\n','\t');
+    const emojis = ['😀','😁','😂','😃','😄','
