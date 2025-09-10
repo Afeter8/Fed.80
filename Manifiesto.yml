@@ -1,0 +1,21 @@
+name: Validate rotated manifest
+on:
+  push:
+    branches:
+      - 'rot-*'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate manifest exists
+        run: |
+          if [ ! -f rotated/manifest.json ]; then echo "manifest missing" && exit 1; fi
+      - name: Lint manifest (basic)
+        run: |
+          python3 - <<'PY'
+import json,sys,hashlib
+m=json.load(open('rotated/manifest.json'))
+print("manifest timestamp",m.get("timestamp"))
+# no attempt to verify HMAC here because ROT_KEY is secret
+PY
