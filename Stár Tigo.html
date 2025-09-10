@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Star Tigo — Núcleo Inmutable de Defensa (POC)</title>
+<style>
+  :root{--bg:#071018;--card:#0e1b25;--accent:#00d1b2;--muted:#88b6ac}
+  html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;background:linear-gradient(180deg,#031018,#081a24);color:#dff6f0}
+  header{padding:20px;text-align:center}
+  h1{margin:0;color:var(--accent)}
+  main{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px}
+  .card{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
+  .small{font-size:0.85rem;color:var(--muted)}
+  label{display:block;margin:8px 0}
+  input[type="text"], input[type="number"], select, textarea{width:100%;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  button{background:var(--accent);color:#012;border:none;padding:8px 10px;border-radius:6px;cursor:pointer;margin-right:6px}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--accent)}
+  #filesList{max-height:260px;overflow:auto;border-radius:6px;padding:6px;background:#021018}
+  .fileRow{display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid rgba(255,255,255,0.02);align-items:center}
+  .muted{color:var(--muted);font-size:0.9rem}
+  pre{white-space:pre-wrap;background:#021018;padding:8px;border-radius:6px;max-height:320px;overflow:auto}
+  footer{padding:10px;text-align:center;color:var(--muted);font-size:0.9rem}
+  .badge{display:inline-block;padding:4px 8px;background:#002a24;border-radius:6px;font-size:0.8rem;margin-left:6px}
+  .flex{display:flex;gap:8px;align-items:center}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .danger{background:#8b2d2d}
+</style>
+</head>
+<body>
+<header>
+  <h1>Star Tigo — Núcleo Inmutable de Defensa (POC)</h1>
+  <div class="small">Archivo auto-contenido: rotación reversible, HMAC-SHA512, simulador GitHub rotativo y ClouDNS. Ejecución local segura.</div>
+</header>
+
+<main>
+  <section class="card" aria-label="control-panel" id="leftPanel">
+    <h2>Control</h2>
+    <div class="small">Clave secreta (ROT_KEY) — <strong>no compartir</strong>. En producción usa Vault/HSM.</div>
+    <label>Clave secreta (ROT_KEY)
+      <input id="rotKey" type="text" placeholder="Introduce ROT_KEY (clave secreta)"/>
+    </label>
+
+    <label>Modo de rotación
+      <select id="mode">
+        <option value="right">Rotar caracteres → derecha (char shift)</option>
+        <option value="left">Rotar caracteres ← izquierda (char shift)</option>
+        <option value="up">Rotar líneas ↑ (line shift)</option>
+        <option value="down">Rotar líneas ↓ (line shift)</option>
+        <option value="binary_left">Rotar bits (bytes left)</option>
+        <option value="binary_right">Rotar bits (bytes right)</option>
+      </select>
+    </label>
+
+    <label>Parámetro (n)
+      <input id="param" type="number" value="1" min="1" />
+    </label>
+
+    <div class="grid2">
+      <button id="btnRotate" title="Generar rotated/manifest.json">Rotar archivos (ejecutar)</button>
+      <button id="btnUnrotate" class="ghost" title="Desrotar usando manifest y ROT_KEY">Desrotar (reconstruir)</button>
+    </div>
+
+    <hr/>
+
+    <h3>Archivos</h3>
+    <div class="small">Carga uno o varios archivos (texto o binarios). Se guardan en la sesión (memoria del navegador).</div>
+    <label>
+      <input id="fileInput" type="file" multiple />
+    </label>
+    <div id="filesList" aria-live="polite"></div>
+
+    <div style="margin-top:10px">
+      <button id="btnExportManifest" class="ghost">Descargar manifest.json</button>
+      <button id="btnDownloadAll" class="ghost">Descargar archivos rotados</button>
+      <button id="btnClear" class="danger">Limpiar sesión</button>
+    </div>
+
+    <hr/>
+    <h3>Simuladores</h3>
+    <div class="small">Simula la creación de una rama rotativa en GitHub y la creación de checks en ClouDNS.</div>
+    <label>Nombre repo (simulado)
+      <input id="repoName" type="text" placeholder="fgm/proyecto-demo" />
+    </label>
+    <div class="flex">
+      <button id="btnSimBranch">Simular GitHub rotativo</button>
+      <button id="btnSimCloudns" class="ghost">Simular ClouDNS checks</button>
+    </div>
+
+    <hr/>
+    <h3>Auto-bucle</h3>
+    <div class="small">Bucle de verificación automática (comprueba HMAC y SHA-512 y repara desde copia de seguridad en sesión).</div>
+    <div class="flex">
+      <label><input id="autoVerify" type="checkbox"> Activar verificación periódica</label>
+      <label style="margin-left:auto">Intervalo (seg): <input id="verifyInterval" type="number" value="20" min="5" style="width:70px"/></label>
+    </div>
+
+    <hr/>
+    <h3>Registro / Auditoría</h3>
+    <div class="small">Logs locales (sesión). Puedes descargar el manifest firmado y los archivos para anclar o auditar.</div>
+    <pre id="logWindow">— logs —</pre>
+  </section>
+
+  <section class="card" id="rightPanel">
+    <h2>Estado y herramientas</h2>
+
+    <div class="grid2">
+      <div>
+        <h3>Manifest (preview)</h3>
+        <pre id="manifestPreview">— manifest vacío —</pre>
+      </div>
+      <div>
+        <h3>Verificación</h3>
+        <div class="small">Resultado de verificación HMAC + comprobación de hashes SHA-512 por archivo.</div>
+        <pre id="verifyResult">— nada —</pre>
+      </div>
+    </div>
+
+    <hr/>
+    <h3>Detalles del archivo seleccionado</h3>
+    <div style="display:flex;gap:8px">
+      <select id="selFile" style="width:60%"></select>
+      <button id="btnView" class="ghost">Ver contenido</button>
+      <button id="btnDownload" class="ghost">Descargar original</button>
+    </div>
+    <pre id="fileContent">Selecciona un archivo para ver su contenido (texto) o información (binario).</pre>
+
+    <hr/>
+    <h3>Simulador de nodos de monitoreo (ClouDNS)</h3>
+    <div class="small">Lista de nodos simulados y últimas comprobaciones (UP/DOWN). Esto es una simulación local para pruebas.</div>
+    <div id="nodesList"></div>
+
+    <hr/>
+    <h3>Ayuda rápida</h3>
+    <div class="small">
+      • Esta POC ejecuta todo en el navegador. Para producción: usar Vault/KMS para ROT_KEY, mover rotator a servidores seguros, anclar manifest en IPFS/blockchain y segregar responsabilidades.<br/>
+      • No ejecute código desrotado en hosts de producción sin sandbox (contenedor, AppArmor/seccomp).<br/>
+      • Para integrar con GitHub real o ClouDNS real, usa sus APIs oficiales y guarda credenciales en un almacén seguro.
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="small">POC desarrollado para Fernando Guadalupe Méndez Espinoza — Star Tigo • No compartir la ROT_KEY públicamente.</div>
+</footer>
+
+<script>
+/*
+  star-tigo-defensa.html
+  - Self-contained POC: upload files, rotate/unrotate, manifest HMAC-SHA512, simulate GitHub/ClouDNS
+  - All data kept in-memory for the browser session.
+  - WARNING: For production, store ROT_KEY in Vault/HSM and run back-end servers for real integration.
+*/
+
+/* -------------------------
+   Utilities: encoding helpers
+   ------------------------- */
+async function sha512ArrayBuffer(buf) {
+  const h = await crypto.subtle.digest('SHA-512', buf);
+  return hex(new Uint8Array(h));
+}
+function hex(byteArray) {
+  return Array.from(byteArray).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+async function hmacSha512(keyStr, dataBytes) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(keyStr), {name:'HMAC', hash:'SHA-512'}, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, dataBytes);
+  return hex(new Uint8Array(sig));
+}
+function ab2str(buf) {
+  try { return new TextDecoder().decode(buf); } catch(e){ return null; }
+}
+function str2ab(str) { return new TextEncoder().encode(str).buffer; }
+
+/* -------------------------
+   In-memory storage (session)
+   ------------------------- */
+const STORE = {
+  files: new Map(),   // name -> {name, arrayBuffer, isText, textPreview}
+  rotated: new Map(), // name -> rotated ArrayBuffer
+  backups: new Map(), // name -> original ArrayBuffer (for repair)
+  manifest: null,     // object
+  manifestHmac: null
+};
+
+const logWindow = document.getElementById('logWindow');
+function log(msg){
+  const t = new Date().toISOString();
+  logWindow.textContent = `[${t}] ${msg}\n` + logWindow.textContent;
+}
+
+/* -------------------------
+   File handling UI
+   ------------------------- */
+const fileInput = document.getElementById('fileInput');
+const filesList = document.getElementById('filesList');
+const selFile = document.getElementById('selFile');
+const fileContent = document.getElementById('fileContent');
+
+fileInput.addEventListener('change', async (ev)=>{
+  const files = Array.from(ev.target.files);
+  for(const f of files){
+    const ab = await f.arrayBuffer();
+    const isText = (() => {
+      // heuristics: try decode as utf-8; if many replacement chars then treat as binary
+      try {
+        const s = new TextDecoder('utf-8', {fatal:true}).decode(ab);
+        // further check: large binary files may still decode; check null bytes
+        if (s.indexOf('\0') !== -1) return false;
+        return true;
+      } catch(e){
+        return false;
+      }
+    })();
+    const textPreview = isText ? new TextDecoder().decode(ab).slice(0, 2000) : `Binary (${ab.byteLength} bytes)`;
+    STORE.files.set(f.name, {name:f.name, arrayBuffer:ab, isText, textPreview});
+    STORE.backups.set(f.name, ab.slice(0)); // keep a backup copy
+    log(`Archivo cargado: ${f.name} (${isText ? 'texto':'binario'}, ${ab.byteLength} bytes)`);
+  }
+  renderFilesList();
+  updateFileSelect();
+});
+
+function renderFilesList(){
+  filesList.innerHTML = '';
+  for(const [name,meta] of STORE.files){
+    const row = document.createElement('div'); row.className = 'fileRow';
+    row.innerHTML = `<div><strong>${name}</strong> <span class="muted">(${meta.isText ? 'texto':'binario'})</span></div>
+      <div class="flex">
+        <button data-name="${name}" class="btnView smallBtn">Ver</button>
+        <button data-name="${name}" class="btnRemove">Eliminar</button>
+      </div>`;
+    filesList.appendChild(row);
+  }
+  // event delegation
+  filesList.querySelectorAll('.btnView').forEach(b=>b.onclick = ()=>{ viewFile(b.dataset.name); });
+  filesList.querySelectorAll('.btnRemove').forEach(b=>{ b.onclick = ()=>{ STORE.files.delete(b.dataset.name); STORE.backups.delete(b.dataset.name); STORE.rotated.delete(b.dataset.name); renderFilesList(); updateFileSelect(); log('Archivo eliminado: '+b.dataset.name); }});
+}
+
+function updateFileSelect(){
+  selFile.innerHTML = '';
+  for(const [name] of STORE.files){
+    const opt = document.createElement('option'); opt.value = name; opt.textContent = name; selFile.appendChild(opt);
+  }
+}
+
+function viewFile(name){
+  const meta = STORE.files.get(name);
+  if(!meta) return fileContent.textContent = 'Archivo no encontrado';
+  if(meta.isText){
+    fileContent.textContent = meta.textPreview + (meta.textPreview.length < 2000 ? '' : '\n\n--- (preview truncado) ---');
+  } else {
+    fileContent.textContent = `Archivo binario: ${meta.name}\nTamaño: ${meta.arrayBuffer.byteLength} bytes`;
+  }
+  log('Vista previa: '+name);
+}
+
+/* -------------------------
+   Rotation algorithms
+   ------------------------- */
+const CHARSET = Array.from((() => {
+  // build charset: ascii letters + digits + punctuation + space + newline + tab + a few emojis
+  const base = [];
+  for(let i=32;i<127;i++) base.push(String.fromCharCode(i));
+  base.push('\n','\t');
+  const emojis = ['😀','😁','😂','😃','😄','😅','😆','😉','😊','🤖','🔥','✨','🌐','🔒'];
+  return base.concat(emojis);
+})());
+
+function buildCharMap(shift){
+  const L = CHARSET.length;
+  const map = new Map();
+  for(let i=0;i<L;i++){
+    map.set(CHARSET[i], CHARSET[(i+shift+L)%L]);
+  }
+  return map;
+}
+
+function rotateTextByChars(text, shift){
+  const map = buildCharMap(shift);
+  // iterate by code points to support emojis
+  const points = Array.from(text);
+  return points.map(ch => map.get(ch) ?? ch).join('');
+}
+
+function rotateLines(text, n){
+  const lines = text.split(/(\r\n|\r|\n)/); // preserve separators in pairs; easier to rotate "logical lines"
+  // Alternative simpler: split by \n keeping newline
+  const rows = text.split('\n');
+  if(rows.length === 0) return text;
+  const k = ((n % rows.length) + rows.length) % rows.length;
+  return rows.slice(k).concat(rows.slice(0,k)).join('\n');
+}
+
+function bytesRotL(abuf, k){
+  const dv = new Uint8Array(abuf);
+  const out = new Uint8Array(dv.length);
+  k = k & 7;
+  for(let i=0;i<dv.length;i++){
+    out[i] = ((dv[i] << k) & 0xFF) | (dv[i] >> (8-k));
+  }
+  return out.buffer;
+}
+function bytesRotR(abuf, k){
+  const dv = new Uint8Array(abuf);
+  const out = new Uint8Array(dv.length);
+  k = k & 7;
+  for(let i=0;i<dv.length;i++){
+    out[i] = (dv[i] >> k) | ((dv[i] << (8-k)) & 0xFF);
+  }
+  return out.buffer;
+}
+
+/* -------------------------
+   Rotate / Unrotate main
+   ------------------------- */
+const btnRotate = document.getElementById('btnRotate');
+const btnUnrotate = document.getElementById('btnUnrotate');
+const manifestPreview = document.getElementById('manifestPreview');
+const verifyResult = document.getElementById('verifyResult');
+
+btnRotate.onclick = async ()=>{
+  if(STORE.files.size === 0){ alert('Carga archivos antes de rotar.'); return; }
+  const rotKey = document.getElementById('rotKey').value;
+  if(!rotKey){ if(!confirm('No has introducido ROT_KEY. Continuar sin HMAC? (no recomendado)')){} }
+  const mode = document.getElementById('mode').value;
+  const param = Math.max(1, parseInt(document.getElementById('param').value || 1));
+  const seed = Date.now().toString() + '-' + Math.floor(Math.random()*1e6).toString(36);
+  const entries = {};
+  // rotate each file
+  for(const [name,meta] of STORE.files){
+    if(meta.isText){
+      const txt = new TextDecoder().decode(meta.arrayBuffer);
+      let rotated;
+      if(mode === 'right') rotated = rotateTextByChars(txt, param);
+      else if(mode === 'left') rotated = rotateTextByChars(txt, -param);
+      else if(mode === 'up') rotated = rotateLines(txt, param);
+      else if(mode === 'down') rotated = rotateLines(txt, -param);
+      else {
+        rotated = txt; // fallback
+      }
+      const ab = new TextEncoder().encode(rotated).buffer;
+      STORE.rotated.set(name, ab);
+      const hash = await sha512ArrayBuffer(ab);
+      entries[name] = {rotated: `rotated/${name}`, sha512: hash};
+      log(`Rotado (texto): ${name} -> sha512:${hash.slice(0,12)}...`);
+    } else {
+      // binary rotation for non-text
+      const ab = meta.arrayBuffer;
+      let out;
+      if(mode === 'binary_left') out = bytesRotL(ab, param);
+      else if(mode === 'binary_right') out = bytesRotR(ab, param);
+      else {
+        // if non-binary mode chosen for binary file, copy as-is
+        out = ab.slice(0);
+      }
+      STORE.rotated.set(name, out);
+      const hash = await sha512ArrayBuffer(out);
+      entries[name] = {rotated: `rotated/${name}`, sha512: hash};
+      log(`Rotado (binario): ${name} -> sha512:${hash.slice(0,12)}...`);
+    }
+  }
+  // manifest
+  const manifest = {
+    timestamp: Date.now(),
+    seed, mode, param,
+    entries
+  };
+  // compute HMAC if key provided
+  let hmacVal = null;
+  if(rotKey){
+    const b = new TextEncoder().encode(JSON.stringify(manifest, Object.keys(manifest).sort()));
+    hmacVal = await hmacSha512(rotKey, b);
+    manifest.hmac = hmacVal;
+    STORE.manifestHmac = hmacVal;
+  }
+  STORE.manifest = manifest;
+  manifestPreview.textContent = JSON.stringify(manifest, null, 2);
+  verifyResult.textContent = 'No verificado aún.';
+  log('Rotación completada. Manifest generado. HMAC:' + (hmacVal ? hmacVal.slice(0,12)+'...' : '(none)'));
+};
+
+btnUnrotate.onclick = async ()=>{
+  if(!STORE.manifest){ alert('No hay manifest generado para desrotar.'); return; }
+  const rotKey = document.getElementById('rotKey').value;
+  // verify hmac
+  const manCopy = Object.assign({}, STORE.manifest);
+  const h = manCopy.hmac; delete manCopy.hmac;
+  let okHmac = true;
+  if(h){
+    if(!rotKey){ alert('Manifest firmado requiere ROT_KEY para verificar/desrotar. Introduce ROT_KEY.'); return; }
+    const b = new TextEncoder().encode(JSON.stringify(manCopy, Object.keys(manCopy).sort()));
+    const calc = await hmacSha512(rotKey, b);
+    okHmac = (calc === h);
+    if(!okHmac){ verifyResult.textContent = 'HMAC inválido: abortando desrotación.'; log('HMAC inválido: abortando.'); return; }
+  }
+  // inverse per file
+  for(const [name,info] of Object.entries(STORE.manifest.entries)){
+    const rotatedBuf = STORE.rotated.get(name);
+    if(!rotatedBuf){
+      log(`No se encontró archivo rotado en sesión: ${name} — intentando desde backup`);
+      // try copy from backup (original)
+      const bak = STORE.backups.get(name);
+      if(bak) { STORE.files.set(name, {name, arrayBuffer: bak, isText: true, textPreview: new TextDecoder().decode(bak).slice(0,2000)}); log('Restaurado desde backup: '+name); continue; }
+      else { log('No hay backup para '+name); continue; }
+    }
+    const param = STORE.manifest.param;
+    const mode = STORE.manifest.mode;
+    if(STORE.files.get(name).isText){
+      const txt = new TextDecoder().decode(rotatedBuf);
+      let original;
+      if(mode === 'right') original = rotateTextByChars(txt, -param);
+      else if(mode === 'left') original = rotateTextByChars(txt, param);
+      else if(mode === 'up') original = rotateLines(txt, -param);
+      else if(mode === 'down') original = rotateLines(txt, param);
+      else original = txt;
+      STORE.files.set(name, {name, arrayBuffer: new TextEncoder().encode(original).buffer, isText:true, textPreview: original.slice(0,2000)});
+      log('Desrotado (texto): '+name);
+    } else {
+      const buf = rotatedBuf;
+      let originalBuf;
+      if(mode === 'binary_left') originalBuf = bytesRotR(buf, param);
+      else if(mode === 'binary_right') originalBuf = bytesRotL(buf, param);
+      else originalBuf = buf.slice(0);
+      STORE.files.set(name, {name, arrayBuffer: originalBuf, isText:false, textPreview:`Binary ${originalBuf.byteLength} bytes`});
+      log('Desrotado (binario): '+name);
+    }
+  }
+  renderFilesList();
+  updateFileSelect();
+  manifestPreview.textContent = JSON.stringify(STORE.manifest, null, 2);
+  verifyResult.textContent = 'HMAC verificado y desrotación completada.';
+  log('Desrotación completada.');
+};
+
+/* -------------------------
+   Verify loop auto
+   ------------------------- */
+let verifyTimer = null;
+document.getElementById('autoVerify').addEventListener('change', (e)=>{
+  if(e.target.checked){
+    const iv = Math.max(5, parseInt(document.getElementById('verifyInterval').value || 20));
+    verifyTimer = setInterval(()=> autoVerifyAndRepair(), iv*1000);
+    log('Auto-verify activado, intervalo ' + iv + 's');
+  } else {
+    clearInterval(verifyTimer); verifyTimer = null; log('Auto-verify desactivado');
+  }
+});
+
+async function autoVerifyAndRepair(){
+  if(!STORE.manifest) { log('Auto-verify: manifest ausente'); return; }
+  const rotKey = document.getElementById('rotKey').value;
+  const manCopy = Object.assign({}, STORE.manifest);
+  const h = manCopy.hmac;
+  delete manCopy.hmac;
+  if(h){
+    if(!rotKey){ log('Auto-verify: ROT_KEY ausente — no puede verificarse HMAC'); verifyResult.textContent = 'ROT_KEY faltante'; return; }
+    const b = new TextEncoder().encode(JSON.stringify(manCopy, Object.keys(manCopy).sort()));
+    const calc = await hmacSha512(rotKey, b);
+    if(calc !== h){ verifyResult.textContent = 'HMAC mismatch!'; log('Auto-verify: HMAC mismatch'); attemptRepairAll(); return; }
+  }
+  // verify each sha512
+  let okAll = true;
+  let report = [];
+  for(const [name,info] of Object.entries(STORE.manifest.entries)){
+    const rotated = STORE.rotated.get(name);
+    if(!rotated){ okAll = false; report.push({name, ok:false, reason:'rotated missing'}); continue; }
+    const hval = await sha512ArrayBuffer(rotated);
+    if(hval !== info.sha512){ okAll = false; report.push({name, ok:false, reason:'sha mismatch'}); }
+    else report.push({name, ok:true});
+  }
+  verifyResult.textContent = JSON.stringify(report, null, 2);
+  if(!okAll){ log('AutoVerify detectó inconsistencias, intentando reparación'); attemptRepairAll(); }
+  else { log('AutoVerify: OK'); }
+}
+
+function attemptRepairAll(){
+  // in this POC, attempt repair from backups in STORE.backups
+  for(const [name,info] of Object.entries(STORE.manifest.entries)){
+    if(!STORE.rotated.get(name) || info.sha512 !== undefined && info.sha512 !== undefined){
+      const bk = STORE.backups.get(name);
+      if(bk){
+        // re-run rotate on backup to "repair" rotated using current mode/param
+        const meta = {name, arrayBuffer: bk, isText: true, textPreview: new TextDecoder().decode(bk).slice(0,2000)};
+        // reuse rotate logic for a single file
+        (async ()=>{
+          if(meta.isText){
+            const txt = new TextDecoder().decode(bk);
+            let rotated;
+            const mode = STORE.manifest.mode; const param = STORE.manifest.param;
+            if(mode === 'right') rotated = rotateTextByChars(txt, param);
+            else if(mode === 'left') rotated = rotateTextByChars(txt, -param);
+            else if(mode === 'up') rotated = rotateLines(txt, param);
+            else if(mode === 'down') rotated = rotateLines(txt, -param);
+            else rotated = txt;
+            const ab = new TextEncoder().encode(rotated).buffer;
+            STORE.rotated.set(name, ab);
+            log('Repair: regenerated rotated from backup: ' + name);
+          } else {
+            // binary: copy as-is
+            STORE.rotated.set(name, bk.slice(0));
+            log('Repair: restored binary rotated from backup: ' + name);
+          }
+        })();
+      } else {
+        log('Repair failed: no backup for ' + name);
+      }
+    }
+  }
+}
+
+/* -------------------------
+   Export / Download functions
+   ------------------------- */
+document.getElementById('btnExportManifest').onclick = ()=>{
+  if(!STORE.manifest) return alert('No hay manifest.');
+  const blob = new Blob([JSON.stringify(STORE.manifest, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'manifest.json'; a.click();
+  URL.revokeObjectURL(url);
+  log('Manifest descargado.');
+};
+
+document.getElementById('btnDownloadAll').onclick = ()=>{
+  if(STORE.rotated.size === 0) return alert('No hay archivos rotados.');
+  for(const [name,ab] of STORE.rotated){
+    const blob = new Blob([ab], {type:'application/octet-stream'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'rotated--'+name; a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 2000);
+  }
+  log('Descarga iniciada para archivos rotados (uno por uno).');
+};
+
+document.getElementById('btnClear').onclick = ()=>{
+  if(!confirm('¿Borrar toda la sesión (archivos, rotated, manifest)?')) return;
+  STORE.files.clear(); STORE.rotated.clear(); STORE.manifest = null; STORE.backups.clear(); STORE.manifestHmac = null;
+  renderFilesList(); updateFileSelect(); manifestPreview.textContent = '— manifest vacío —'; verifyResult.textContent = '— nada —';
+  log('Sesión limpiada.');
+};
+
+document.getElementById('btnView').onclick = ()=> viewFile(selFile.value);
+document.getElementById('btnDownload').onclick = ()=>{
+  const name = selFile.value;
+  if(!name) return alert('Selecciona un archivo');
+  const meta = STORE.files.get(name);
+  if(!meta) return alert('Archivo no encontrado');
+  const blob = new Blob([meta.arrayBuffer], {type:'application/octet-stream'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(()=> URL.revokeObjectURL(a.href), 2000);
+  log('Descarga archivo: ' + name);
+};
+
+/* -------------------------
+   Simulators: GitHub rotative & ClouDNS
+   ------------------------- */
+document.getElementById('btnSimBranch').onclick = ()=> {
+  if(!STORE.manifest){ alert('Genera manifest antes de simular push.'); return; }
+  const repo = document.getElementById('repoName').value || 'fgm/demo';
+  const branch = 'rot-' + Date.now() + '-' + Math.floor(Math.random()*1e6).toString(36);
+  const payload = {
+    repo, branch, manifest: STORE.manifest, timestamp: Date.now()
+  };
+  // show payload as JSON modal (simple)
+  manifestPreview.textContent = JSON.stringify(payload, null, 2);
+  log('Simulado push rotativo a GitHub: ' + repo + ' -> branch ' + branch);
+};
+
+document.getElementById('btnSimCloudns').onclick = ()=> {
+  // create pseudo checks using nodes list
+  const nodes = ['Amsterdam, NL','Ashburn, US','Frankfurt, DE','Tokyo, JP','Sao Paulo, BR','Sydney, AU','Mexico City, MX'];
+  const checks = [];
+  for(const n of nodes){
+    checks.push({name:'fgm-web-'+n.replace(/[^a-z0-9]/ig,'-').toLowerCase(), node:n, type:'web', period:'10min', host:'home.cern'});
+  }
+  // render nodes
+  const container = document.getElementById('nodesList');
+  container.innerHTML = '<pre>' + JSON.stringify(checks, null, 2) + '</pre>';
+  log('Simulado ClouDNS checks creados ('+checks.length+' nodos).');
+  // start a simple simulator of UP/DOWN pings
+  startNodeSimulator(checks);
+};
+
+/* -------------------------
+   Simple node simulator
+   ------------------------- */
+let nodeTimers = [];
+function startNodeSimulator(checks){
+  // clear previous
+  nodeTimers.forEach(t=>clearInterval(t)); nodeTimers = [];
+  const container = document.getElementById('nodesList');
+  container.innerHTML = '';
+  checks.forEach((c, idx)=>{
+    const el = document.createElement('div'); el.style.padding='8px'; el.style.borderBottom='1px solid rgba(255,255,255,0.04)';
+    el.id = 'node-'+idx; el.innerHTML = `<strong>${c.name}</strong> <span class="muted">(${c.node})</span> <div id="nstatus-${idx}" class="muted">Checking...</div>`;
+    container.appendChild(el);
+    // randomize initial state
+    let state = Math.random() > 0.1 ? 'UP' : 'DOWN';
+    document.getElementById('nstatus-'+idx).textContent = state + ' (simulado)';
+    const t = setInterval(()=>{
+      // random flip
+      if(Math.random() < 0.06) state = (state === 'UP' ? 'DOWN' : 'UP');
+      document.getElementById('nstatus-'+idx).textContent = state + ' (simulado) ' + new Date().toLocaleTimeString();
+      if(state === 'DOWN') {
+        log(`Alerta simulated: ${c.name} DOWN at node ${c.node}`);
+        // trigger simple webhook handler simulation
+        // in production call your orchestrator webhook
+      }
+    }, 5000 + Math.random()*5000);
+    nodeTimers.push(t);
+  });
+}
+
+/* -------------------------
+   Init
+   ------------------------- */
+(function init(){
+  log('POC iniciado. Carga archivos para comenzar.');
+  updateFileSelect();
+  manifestPreview.textContent = '— manifest vacío —';
+})();
+</script>
+</body>
+</html>
