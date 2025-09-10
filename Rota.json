@@ -1,0 +1,10 @@
+{
+  "propietario": "Fernando Guadalupe Mendez Espinoza",
+  "sistemas": ["Star Tigo", "Tigo Star", "IA Defensa"],
+  "modo": "bucle_eterno",
+  "seguridad": {
+    "rotacion_codigo": true,
+    "auto_reparacion": true,
+    "descentralizacion": true
+  }
+}
