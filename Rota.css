@@ -1,0 +1,27 @@
+body {
+  background: #0a0a0a;
+  color: #00ffcc;
+  font-family: monospace;
+  text-align: center;
+  padding: 40px;
+}
+
+h1 {
+  color: #ff4444;
+  text-shadow: 0 0 10px red;
+}
+
+button {
+  background: #111;
+  color: #00ffcc;
+  border: 2px solid #00ffcc;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 5px;
+}
+
+button:hover {
+  background: #00ffcc;
+  color: #000;
+}
