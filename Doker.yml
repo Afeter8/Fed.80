@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  orchestrator:
+    image: python:3.10-slim
+    volumes: ['.:/opt/star-tigo-defensa']
+    working_dir: /opt/star-tigo-defensa/orchestrator
+    ports: ['9000:9000']
+    environment:
+      - CLOUDNS_AUTH_ID=${CLOUDNS_AUTH_ID}
+      - CLOUDNS_AUTH_PASS=${CLOUDNS_AUTH_PASS}
+    command: ["python3","webhook_handler.py"]
+  cloudns-api:
+    image: python:3.10-slim
+    volumes: ['.:/opt/star-tigo-defensa']
+    working_dir: /opt/star-tigo-defensa/cloudns_api
+    environment:
+      - CLOUDNS_AUTH_ID=${CLOUDNS_AUTH_ID}
+      - CLOUDNS_AUTH_PASS=${CLOUDNS_AUTH_PASS}
+    command: ["sleep","infinity"]
+  rotate:
+    image: python:3.10-slim
+    volumes: ['.:/opt/star-tigo-defensa']
+    working_dir: /opt/star-tigo-defensa/rotate
+    environment:
+      - ROT_KEY=${ROT_KEY}
+      - GIT_PUSH=${GIT_PUSH:-false}
+      - GIT_REMOTE=${GIT_REMOTE:-origin}
+    command: ["python3","rotate_service.py"]
+  verify:
+    image: python:3.10-slim
+    volumes: ['.:/opt/star-tigo-defensa']
+    working_dir: /opt/star-tigo-defensa/rotate
+    environment:
+      - ROT_KEY=${ROT_KEY}
+    command: ["python3","verify_loop.py"]
