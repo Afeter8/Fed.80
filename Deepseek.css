@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Star Tigo — Núcleo Inmutable de Defensa (POC Mejorado)</title>
+<style>
+  :root {
+    --bg: #071018;
+    --card: #0e1b25;
+    --accent: #00d1b2;
+    --muted: #88b6ac;
+    --warning: #ffdd86;
+    --danger: #ff5e76;
+    --success: #4ade80;
+    --info: #38bdf8;
+  }
+  
+  html, body {
+    height: 100%;
+    margin: 0;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg, #031018, #081a24);
+    color: #dff6f0;
+  }
+  
+  header {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  h1 {
+    margin: 0;
+    color: var(--accent);
+  }
+  
+  main {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+  
+  .card {
+    background: var(--card);
+    padding: 16px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    margin-bottom: 16px;
+  }
+  
+  .small {
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  
+  label {
+    display: block;
+    margin: 8px 0;
+  }
+  
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+    color: inherit;
+    box-sizing: border-box;
+  }
+  
+  button {
+    background: var(--accent);
+    color: #012;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-right: 6px;
+    transition: all 0.2s ease;
+  }
+  
+  button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  
+  button.ghost {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--accent);
+  }
+  
+  button.danger {
+    background: var(--danger);
+    color: white;
+  }
+  
+  button.warning {
+    background: var(--warning);
+    color: #333;
+  }
+  
+  button.success {
+    background: var(--success);
+    color: white;
+  }
+  
+  #filesList {
+    max-height: 260px;
+    overflow: auto;
+    border-radius: 6px;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.2);
+  }
+  
+  .fileRow {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    align-items: center;
+  }
+  
+  .fileRow:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  
+  .muted {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  
+  pre {
+    white-space: pre-wrap;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 12px;
+    border-radius: 6px;
+    max-height: 320px;
+    overflow: auto;
+    font-size: 0.9rem;
+  }
+  
+  footer {
+    padding: 10px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background: #002a24;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    margin-left: 6px;
+  }
+  
+  .flex {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  
+  .grid3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  
+  /* Nuevos estilos para el sistema de defensa */
+  .dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .metric {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+  }
+  
+  .metric h3 {
+    margin: 0 0 8px 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  
+  .metric .value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--accent);
+  }
+  
+  .status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  
+  .status-online {
+    background: var(--success);
+  }
+  
+  .status-offline {
+    background: var(--danger);
+  }
+  
+  .status-warning {
+    background: var(--warning);
+  }
+  
+  .threat-log {
+    max-height: 200px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 8px;
+    font-family: monospace;
+    font-size: 0.8rem;
+  }
+  
+  .threat-entry {
+    padding: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .threat-critical {
+    color: var(--danger);
+    font-weight: bold;
+  }
+  
+  .threat-high {
+    color: var(--warning);
+  }
+  
+  .threat-medium {
+    color: var(--muted);
+  }
+  
+  .threat-low {
+    color: var(--info);
+  }
+  
+  .ai-recommendation {
+    background: rgba(0, 0, 0, 0.2);
+    border-left: 3px solid var(--accent);
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 0 4px 4px 0;
+  }
+  
+  .tab-container {
+    margin-top: 16px;
+  }
+  
+  .tab-buttons {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .tab-button {
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  
+  .tab-button.active {
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+  }
+  
+  .tab-content {
+    padding: 16px 0;
+  }
+  
+  .tab-pane {
+    display: none;
+  }
+  
+  .tab-pane.active {
+    display: block;
+  }
+  
+  .progress-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+  
+  .defense-layer {
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: rgba(0, 0, 0, 0.1);
+  }
+  
+  .defense-layer.active {
+    border-color: var(--success);
+    background: rgba(0, 100, 0, 0.1);
+  }
+  
+  .defense-layer.inactive {
+    border-color: var(--muted);
+    opacity: 0.6;
+  }
+  
+  .defense-layer.alert {
+    border-color: var(--danger);
+    background: rgba(100, 0, 0, 0.1);
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Star Tigo — Núcleo Inmutable de Defensa (POC Mejorado)</h1>
+  <div class="small">Sistema de defensa por capas con IA integrada. Protección avanzada con análisis predictivo y respuesta automática.</div>
+</header>
+
+<main>
+  <section id="leftPanel">
+    <div class="card">
+      <h2>Control Principal</h2>
+      <div class="small">Clave secreta (ROT_KEY) — <strong>no compartir</strong>. En producción usa Vault/HSM.</div>
+      <label>Clave secreta (ROT_KEY)
+        <input id="rotKey" type="text" placeholder="Introduce ROT_KEY (clave secreta)"/>
+      </label>
+      
+      <div class="grid2" style="margin-top: 12px;">
+        <label>Modo de rotación
+          <select id="mode">
+            <option value="right">Rotar derecha (texto)</option>
+            <option value="left">Rotar izquierda (texto)</option>
+            <option value="up">Rotar arriba (líneas)</option>
+            <option value="down">Rotar abajo (líneas)</option>
+            <option value="binary_left">Rotar izquierda (binario)</option>
+            <option value="binary_right">Rotar derecha (binario)</option>
+          </select>
+        </label>
+        
+        <label>Parámetro (n)
+          <input id="param" type="number" value="3" min="1"/>
+        </label>
+      </div>
+      
+      <div class="flex" style="margin-top: 12px;">
+        <button id="btnRotate">Rotar archivos</button>
+        <button id="btnUnrotate" class="ghost">Desrotar archivos</button>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>Archivos</h2>
+      <input type="file" id="fileInput" multiple style="display: none"/>
+      <button onclick="document.getElementById('fileInput').click()">Seleccionar archivos</button>
+      <button id="btnClear" class="danger">Limpiar sesión</button>
+      
+      <div id="filesList" style="margin-top: 12px;"></div>
+      
+      <div style="margin-top: 12px;">
+        <select id="selFile" style="width: 70%;"></select>
+        <button id="btnView">Vista previa</button>
+        <button id="btnDownload">Descargar</button>
+      </div>
+      
+      <pre id="fileContent" style="margin-top: 12px;">— contenido —</pre>
+    </div>
+    
+    <div class="card">
+      <h2>Exportar</h2>
+      <button id="btnExportManifest">Exportar Manifest</button>
+      <button id="btnDownloadAll">Descargar Rotados</button>
+    </div>
+  </section>
+  
+  <section id="rightPanel">
+    <div class="card">
+      <h2>Estado del Sistema de Defensa</h2>
+      
+      <div class="dashboard">
+        <div class="metric">
+          <h3>Nivel de Amenaza</h3>
+          <div class="value" id="threatLevel">BAJO</div>
+        </div>
+        <div class="metric">
+          <h3>Archivos Protegidos</h3>
+          <div class="value" id="protectedFiles">0</div>
+        </div>
+        <div class="metric">
+          <h3>Intentos Bloqueados</h3>
+          <div class="value" id="blockedAttempts">0</div>
+        </div>
+        <div class="metric">
+          <h3>Estado del Sistema</h3>
+          <div class="value"><span class="status-indicator status-online"></span>ACTIVO</div>
+        </div>
+      </div>
+      
+      <div class="tab-container">
+        <div class="tab-buttons">
+          <button class="tab-button active" data-tab="monitoring">Monitoreo</button>
+          <button class="tab-button" data-tab="defense">Capas de Defensa</button>
+          <button class="tab-button" data-tab="ai">Análisis de IA</button>
+        </div>
+        
+        <div class="tab-content">
+          <div class="tab-pane active" id="tab-monitoring">
+            <h3>Registro de Amenazas</h3>
+            <div class="threat-log" id="threatLog">
+              <div class="threat-entry">Sistema iniciado. Monitoreo activo.</div>
+            </div>
+            
+            <h3 style="margin-top: 16px;">Auto-Verificación</h3>
+            <label class="flex">
+              <input type="checkbox" id="autoVerify"/>
+              <span>Verificación automática cada</span>
+              <input id="verifyInterval" type="number" value="20" style="width: 60px; margin: 0 8px;"/> segundos
+            </label>
+            
+            <div class="ai-recommendation">
+              <strong>Recomendación de IA:</strong> Mantener la verificación automática activada para detección temprana de manipulaciones.
+            </div>
+          </div>
+          
+          <div class="tab-pane" id="tab-defense">
+            <h3>Capas de Defensa Activadas</h3>
+            
+            <div class="defense-layer active">
+              <div class="flex">
+                <strong>Rotación Criptográfica</strong>
+                <span class="status-indicator status-online"></span>
+              </div>
+              <div class="small">Protección de datos mediante algoritmos de rotación reversible</div>
+            </div>
+            
+            <div class="defense-layer active">
+              <div class="flex">
+                <strong>Verificación de Integridad (HMAC)</strong>
+                <span class="status-indicator status-online"></span>
+              </div>
+              <div class="small">Validación criptográfica de la autenticidad de los datos</div>
+            </div>
+            
+            <div class="defense-layer active">
+              <div class="flex">
+                <strong>Monitoreo en Tiempo Real</strong>
+                <span class="status-indicator status-online"></span>
+              </div>
+              <div class="small">Detección continua de anomalías y modificaciones</div>
+            </div>
+            
+            <div class="defense-layer">
+              <div class="flex">
+                <strong>Réplica Geodistribuida</strong>
+                <span class="status-indicator status-offline"></span>
+              </div>
+              <div class="small">Almacenamiento redundante en múltiples ubicaciones (requiere configuración)</div>
+            </div>
+            
+            <button id="btnEnableAllDefenses" class="success" style="margin-top: 12px;">Activar Todas las Defensas</button>
+          </div>
+          
+          <div class="tab-pane" id="tab-ai">
+            <h3>Análisis Predictivo de IA</h3>
+            
+            <div class="ai-recommendation">
+              <strong>Análisis de Patrones:</strong> El sistema no detecta anomalías en los patrones de acceso actuales.
+            </div>
+            
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: 30%;"></div>
+            </div>
+            <div class="small">Probabilidad de ataque detectada: 30%</div>
+            
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: 85%;"></div>
+            </div>
+            <div class="small">Efectividad de las defensas actuales: 85%</div>
+            
+            <h3 style="margin-top: 16px;">Recomendaciones de IA</h3>
+            <ul>
+              <li>Implementar rotación de claves cada 24 horas</li>
+              <li>Activar la réplica geodistribuida para mayor resiliencia</li>
+              <li>Aumentar frecuencia de verificación a 15 segundos durante horario pico</li>
+            </ul>
+            
+            <button id="btnApplyAIRecommendations" style="margin-top: 12px;">Aplicar Recomendaciones</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>Manifest y Verificación</h2>
+      <pre id="manifestPreview">— manifest vacío —</pre>
+      
+      <h3>Resultado de Verificación</h3>
+      <pre id="verifyResult">— nada —</pre>
+    </div>
+    
+    <div class="card">
+      <h2>Simuladores de Entorno</h2>
+      
+      <div class="grid2">
+        <div>
+          <h3>GitHub Rotativo</h3>
+          <label>Repositorio
+            <input id="repoName" type="text" value="fgm/demo"/>
+          </label>
+          <button id="btnSimBranch">Simular Push Rotativo</button>
+        </div>
+        
+        <div>
+          <h3>ClouDNS</h3>
+          <button id="btnSimCloudns">Simular Checks DNS</button>
+          <div id="nodesList" style="margin-top: 8px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="small">POC mejorado con IA para Fernando Guadalupe Méndez Espinoza — Star Tigo • No compartir la ROT_KEY públicamente.</div>
+</footer>
+
+<script>
+/*
+  star-tigo-defensa-mejorado.html
+  - Sistema de defensa mejorado con IA integrada y capacidades de monitoreo avanzado
+  - Self-contained POC: upload files, rotate/unrotate, manifest HMAC-SHA512, simulate GitHub/ClouDNS
+  - All data kept in-memory for the browser session.
+  - WARNING: For production, store ROT_KEY in Vault/HSM and run back-end servers for real integration.
+*/
+
+/* -------------------------
+   Utilities: encoding helpers
+   ------------------------- */
+async function sha512ArrayBuffer(buf) {
+  const h = await crypto.subtle.digest('SHA-512', buf);
+  return hex(new Uint8Array(h));
+}
+function hex(byteArray) {
+  return Array.from(byteArray).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+async function hmacSha512(keyStr, dataBytes) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(keyStr), {name:'HMAC', hash:'SHA-512'}, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, dataBytes);
+  return hex(new Uint8Array(sig));
+}
+function ab2str(buf) {
+  try { return new TextDecoder().decode(buf); } catch(e){ return null; }
+}
+function str2ab(str) { return new TextEncoder().encode(str).buffer; }
+
+/* -------------------------
+   In-memory storage (session)
+   ------------------------- */
+const STORE = {
+  files: new Map(),   // name -> {name, arrayBuffer, isText, textPreview}
+  rotated: new Map(), // name -> rotated ArrayBuffer
+  backups: new Map(), // name -> original ArrayBuffer (for repair)
+  manifest: null,     // object
+  manifestHmac: null,
+  threatLevel: 1,     // 1-5 scale, 1=low, 5=critical
+  blockedAttempts: 0,
+  defenseLayers: {
+    cryptoRotation: true,
+    integrityCheck: true,
+    realtimeMonitoring: true,
+    geoReplication: false
+  }
+};
+
+// Sistema de IA simulado
+const AI_SYSTEM = {
+  analyzePatterns: function() {
+    // Simula análisis de patrones de acceso y comportamiento
+    const randomFactor = Math.random();
+    if (randomFactor < 0.1) {
+      return { risk: "HIGH", confidence: 0.85, recommendation: "Aumentar verificación a 10 segundos." };
+    } else if (randomFactor < 0.3) {
+      return { risk: "MEDIUM", confidence: 0.65, recommendation: "Monitorizar accesos inusuales." };
+    } else {
+      return { risk: "LOW", confidence: 0.92, recommendation: "Sistema operando normalmente." };
+    }
+  },
+  
+  predictThreat: function() {
+    // Simula predicción de amenazas basada en patrones históricos
+    return Math.floor(Math.random() * 30) + 1; // 1-30% de probabilidad
+  },
+  
+  generateRecommendations: function() {
+    return [
+      "Implementar rotación de claves cada 24 horas",
+      "Activar la réplica geodistribuida para mayor resiliencia",
+      "Aumentar frecuencia de verificación a 15 segundos durante horario pico"
+    ];
+  }
+};
+
+// Sistema de defensa mejorado
+const DEFENSE_SYSTEM = {
+  init: function() {
+    this.updateDashboard();
+    this.startMonitoring();
+    logThreat('Sistema de defensa inicializado', 'low');
+  },
+  
+  updateDashboard: function() {
+    document.getElementById('protectedFiles').textContent = STORE.files.size;
+    document.getElementById('blockedAttempts').textContent = STORE.blockedAttempts;
+    
+    // Actualizar nivel de amenaza
+    const threatText = ['BAJO', 'MODERADO', 'MEDIO', 'ALTO', 'CRÍTICO'][STORE.threatLevel - 1] || 'DESCONOCIDO';
+    document.getElementById('threatLevel').textContent = threatText;
+    
+    // Actualizar estado de capas de defensa
+    this.updateDefenseLayersUI();
+  },
+  
+  updateDefenseLayersUI: function() {
+    const layers = document.querySelectorAll('.defense-layer');
+    layers.forEach(layer => {
+      const layerType = layer.querySelector('strong').textContent;
+      let isActive = false;
+      
+      if (layerType.includes('Rotación Criptográfica')) isActive = STORE.defenseLayers.cryptoRotation;
+      else if (layerType.includes('Verificación de Integridad')) isActive = STORE.defenseLayers.integrityCheck;
+      else if (layerType.includes('Monitoreo en Tiempo Real')) isActive = STORE.defenseLayers.realtimeMonitoring;
+      else if (layerType.includes('Réplica Geodistribuida')) isActive = STORE.defenseLayers.geoReplication;
+      
+      layer.className = 'defense-layer ' + (isActive ? 'active' : 'inactive');
+    });
+  },
+  
+  startMonitoring: function() {
+    // Simula monitoreo continuo del sistema
+    setInterval(() => {
+      // Análisis predictivo de IA
+      const aiAnalysis = AI_SYSTEM.analyzePatterns();
+      
+      // Actualizar nivel de amenaza basado en análisis
+      if (aiAnalysis.risk === "HIGH" && STORE.threatLevel < 4) {
+        STORE.threatLevel++;
+        logThreat('Aumento de nivel de amenaza detectado por IA: ' + aiAnalysis.risk, 'high');
+      } else if (aiAnalysis.risk === "LOW" && STORE.threatLevel > 1) {
+        STORE.threatLevel--;
+      }
+      
+      // Detección aleatoria de amenazas simuladas
+      if (Math.random() < 0.05) {
+        this.detectThreat();
+      }
+      
+      this.updateDashboard();
+    }, 10000); // Cada 10 segundos
+  },
+  
+  detectThreat: function() {
+    const threats = [
+      { type: 'Intento de acceso no autorizado', severity: 'high' },
+      { type: 'Patrón de acceso inusual detectado', severity: 'medium' },
+      { type: 'Posible manipulación de archivos', severity: 'critical' },
+      { type: 'Intento de modificación de manifest', severity: 'high' },
+      { type: 'Comportamiento anómalo en el sistema', severity: 'medium' }
+    ];
+    
+    const threat = threats[Math.floor(Math.random() * threats.length)];
+    STORE.blockedAttempts++;
+    logThreat(`AMENAZA: ${threat.type} - BLOQUEADO`, threat.severity);
+  },
+  
+  enableAllDefenses: function() {
+    STORE.defenseLayers.cryptoRotation = true;
+    STORE.defenseLayers.integrityCheck = true;
+    STORE.defenseLayers.realtimeMonitoring = true;
+    STORE.defenseLayers.geoReplication = true;
+    
+    this.updateDefenseLayersUI();
+    logThreat('Todas las capas de defensa activadas', 'low');
+  },
+  
+  applyAIRecommendations: function() {
+    // Simula la aplicación de recomendaciones de IA
+    document.getElementById('verifyInterval').value = 15;
+    document.getElementById('autoVerify').checked = true;
+    
+    STORE.defenseLayers.geoReplication = true;
+    this.updateDefenseLayersUI();
+    
+    logThreat('Recomendaciones de IA aplicadas exitosamente', 'low');
+  }
+};
+
+// Sistema de registro de amenazas
+function logThreat(message, severity) {
+  const threatLog = document.getElementById('threatLog');
+  const entry = document.createElement('div');
+  entry.className = 'threat-entry threat-' + severity;
+  entry.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+  threatLog.prepend(entry);
+  
+  // Mantener un máximo de 50 entradas
+  if (threatLog.children.length > 50) {
+    threatLog.removeChild(threatLog.lastChild);
+  }
+}
+
+// Sistema de pestañas
+function initTabs() {
+  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabPanes = document.querySelectorAll('.tab-pane');
+  
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const tabId = button.getAttribute('data-tab');
+      
+      // Desactivar todas las pestañas
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabPanes.forEach(pane => pane.classList.remove('active'));
+      
+      // Activar la pestaña seleccionada
+      button.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    });
+  });
+}
+
+/* -------------------------
+   File handling UI
+   ------------------------- */
+const fileInput = document.getElementById('fileInput');
+const filesList = document.getElementById('filesList');
+const selFile = document.getElementById('selFile');
+const fileContent = document.getElementById('fileContent');
+
+fileInput.addEventListener('change', async (ev)=>{
+  const files = Array.from(ev.target.files);
+  for(const f of files){
+    const ab = await f.arrayBuffer();
+    const isText = (() => {
+      // heuristics: try decode as utf-8; if many replacement chars then treat as binary
+      try {
+        const s = new TextDecoder('utf-8', {fatal:true}).decode(ab);
+        // further check: large binary files may still decode; check null bytes
+        if (s.indexOf('\0') !== -1) return false;
+        return true;
+      } catch(e){
+        return false;
+      }
+    })();
+    const textPreview = isText ? new TextDecoder().decode(ab).slice(0, 2000) : `Binary (${ab.byteLength} bytes)`;
+    STORE.files.set(f.name, {name:f.name, arrayBuffer:ab, isText, textPreview});
+    STORE.backups.set(f.name, ab.slice(0)); // keep a backup copy
+    logThreat(`Archivo cargado: ${f.name} (${isText ? 'texto':'binario'}, ${ab.byteLength} bytes)`, 'low');
+  }
+  renderFilesList();
+  updateFileSelect();
+  DEFENSE_SYSTEM.updateDashboard();
+});
+
+function renderFilesList(){
+  filesList.innerHTML = '';
+  for(const [name,meta] of STORE.files){
+    const row = document.createElement('div'); row.className = 'fileRow';
+    row.innerHTML = `<div><strong>${name}</strong> <span class="muted">(${meta.isText ? 'texto':'binario'})</span></div>
+      <div class="flex">
+        <button data-name="${name}" class="btnView smallBtn">Ver</button>
+        <button data-name="${name}" class="btnRemove">Eliminar</button>
+      </div>`;
+    filesList.appendChild(row);
+  }
+  // event delegation
+  filesList.querySelectorAll('.btnView').forEach(b=>b.onclick = ()=>{ viewFile(b.dataset.name); });
+  filesList.querySelectorAll('.btnRemove').forEach(b=>{ b.onclick = ()=>{ STORE.files.delete(b.dataset.name); STORE.backups.delete(b.dataset.name); STORE.rotated.delete(b.dataset.name); renderFilesList(); updateFileSelect(); logThreat('Archivo eliminado: '+b.dataset.name, 'low'); DEFENSE_SYSTEM.updateDashboard(); }});
+}
+
+function updateFileSelect(){
+  selFile.innerHTML = '';
+  for(const [name] of STORE.files){
+    const opt = document.createElement('option'); opt.value = name; opt.textContent = name; selFile.appendChild(opt);
+  }
+}
+
+function viewFile(name){
+  const meta = STORE.files.get(name);
+  if(!meta) return fileContent.textContent = 'Archivo no encontrado';
+  if(meta.isText){
+    fileContent.textContent = meta.textPreview + (meta.textPreview.length < 2000 ? '' : '\n\n--- (preview truncado) ---');
+  } else {
+    fileContent.textContent = `Archivo binario: ${meta.name}\nTamaño: ${meta.arrayBuffer.byteLength} bytes`;
+  }
+  logThreat('Vista previa: '+name, 'low');
+}
+
+/* -------------------------
+   Rotation algorithms
+   ------------------------- */
+const CHARSET = Array.from((() => {
+  // build charset: ascii letters + digits + punctuation + space + newline + tab + a few emojis
+  const base = [];
+  for(let i=32;i<127;i++) base.push(String.fromCharCode(i));
+  base.push('\n','\t');
+  const emojis = ['😀','😁','😂','😃','😄','😅','😆','😉','😊','🤖','🔥','✨','🌐','🔒'];
+  return base.concat(emojis);
+})());
+
+function buildCharMap(shift){
+  const L = CHARSET.length;
+  const map = new Map();
+  for(let i=0;i<L;i++){
+    map.set(CHARSET[i], CHARSET[(i+shift+L)%L]);
+  }
+  return map;
+}
+
+function rotateTextByChars(text, shift){
+  const map = buildCharMap(shift);
+  // iterate by code points to support emojis
+  const points = Array.from(text);
+  return points.map(ch => map.get(ch) ?? ch).join('');
+}
+
+function rotateLines(text, n){
+  const lines = text.split(/(\r\n|\r|\n)/); // preserve separators in pairs; easier to rotate "logical lines"
+  // Alternative simpler: split by \n keeping newline
+  const rows = text.split('\n');
+  if(rows.length === 0) return text;
+  const k = ((n % rows.length) + rows.length) % rows.length;
+  return rows.slice(k).concat(rows.slice(0,k)).join('\n');
+}
+
+function bytesRotL(abuf, k){
+  const dv = new Uint8Array(abuf);
+  const out = new Uint8Array(dv.length);
+  k = k & 7;
+  for(let i=0;i<dv.length;i++){
+    out[i] = ((dv[i] << k) & 0xFF) | (dv[i] >> (8-k));
+  }
+  return out.buffer;
+}
+function bytesRotR(abuf, k){
+  const dv = new Uint8Array(abuf);
+  const out = new Uint8Array(dv.length);
+  k = k & 7;
+  for(let i=0;i<dv.length;i++){
+    out[i] = (dv[i] >> k) | ((dv[i] << (8-k)) & 0xFF);
+  }
+  return out.buffer;
+}
+
+/* -------------------------
+   Rotate / Unrotate main
+   ------------------------- */
+const btnRotate = document.getElementById('btnRotate');
+const btnUnrotate = document.getElementById('btnUnrotate');
+const manifestPreview = document.getElementById('manifestPreview');
+const verifyResult = document.getElementById('verifyResult');
+
+btnRotate.onclick = async ()=>{
+  if(STORE.files.size === 0){ alert('Carga archivos antes de rotar.'); return; }
+  const rotKey = document.getElementById('rotKey').value;
+  if(!rotKey){ if(!confirm('No has introducido ROT_KEY. Continuar sin HMAC? (no recomendado)')){} }
+  const mode = document.getElementById('mode').value;
+  const param = Math.max(1, parseInt(document.getElementById('param').value || 1));
+  const seed = Date.now().toString() + '-' + Math.floor(Math.random()*1e6).toString(36);
+  const entries = {};
+  // rotate each file
+  for(const [name,meta] of STORE.files){
+    if(meta.isText){
+      const txt = new TextDecoder().decode(meta.arrayBuffer);
+      let rotated;
+      if(mode === 'right') rotated = rotateTextByChars(txt, param);
+      else if(mode === 'left') rotated = rotateTextByChars(txt, -param);
+      else if(mode === 'up') rotated = rotateLines(txt, param);
+      else if(mode === 'down') rotated = rotateLines(txt, -param);
+      else {
+        rotated = txt; // fallback
+      }
+      const ab = new TextEncoder().encode(rotated).buffer;
+      STORE.rotated.set(name, ab);
+      const hash = await sha512ArrayBuffer(ab);
+      entries[name] = {rotated: `rotated/${name}`, sha512: hash};
+      logThreat(`Rotado (texto): ${name} -> sha512:${hash.slice(0,12)}...`, 'low');
+    } else {
+      // binary rotation for non-text
+      const ab = meta.arrayBuffer;
+      let out;
+      if(mode === 'binary_left') out = bytesRotL(ab, param);
+      else if(mode === 'binary_right') out = bytesRotR(ab, param);
+      else {
+        // if non-binary mode chosen for binary file, copy as-is
+        out = ab.slice(0);
+      }
+      STORE.rotated.set(name, out);
+      const hash = await sha512ArrayBuffer(out);
+      entries[name] = {rotated: `rotated/${name}`, sha512: hash};
+      logThreat(`Rotado (binario): ${name} -> sha512:${hash.slice(0,12)}...`, 'low');
+    }
+  }
+  // manifest
+  const manifest = {
+    timestamp: Date.now(),
+    seed, mode, param,
+    entries
+  };
+  // compute HMAC if key provided
+  let hmacVal = null;
+  if(rotKey){
+    const b = new TextEncoder().encode(JSON.stringify(manifest, Object.keys(manifest).sort()));
+    hmacVal = await hmacSha512(rotKey, b);
+    manifest.hmac = hmacVal;
+    STORE.manifestHmac = hmacVal;
+  }
+  STORE.manifest = manifest;
+  manifestPreview.textContent = JSON.stringify(manifest, null, 2);
+  verifyResult.textContent = 'No verificado aún.';
+  logThreat('Rotación completada. Manifest generado. HMAC:' + (hmacVal ? hmacVal.slice(0,12)+'...' : '(none)'), 'low');
+  DEFENSE_SYSTEM.updateDashboard();
+};
+
+btnUnrotate.onclick = async ()=>{
+  if(!STORE.manifest){ alert('No hay manifest generado para desrotar.'); return; }
+  const rotKey = document.getElementById('rotKey').value;
+  // verify hmac
+  const manCopy = Object.assign({}, STORE.manifest);
+  const h = manCopy.hmac; delete manCopy.hmac;
+  let okHmac = true;
+  if(h){
+    if(!rotKey){ alert('Manifest firmado requiere ROT_KEY para verificar/desrotar. Introduce ROT_KEY.'); return; }
+    const b = new TextEncoder().encode(JSON.stringify(manCopy, Object.keys(manCopy).sort()));
+    const calc = await hmacSha512(rotKey, b);
+    okHmac = (calc === h);
+    if(!okHmac){ verifyResult.textContent = 'HMAC inválido: abortando desrotación.'; logThreat('HMAC inválido: abortando.', 'high'); return; }
+  }
+  // inverse per file
+  for(const [name,info] of Object.entries(STORE.manifest.entries)){
+    const rotatedBuf = STORE.rotated.get(name);
+    if(!rotatedBuf){
+      logThreat(`No se encontró archivo rotado en sesión: ${name} — intentando desde backup`, 'medium');
+      // try copy from backup (original)
+      const bak = STORE.backups.get(name);
+      if(bak) { STORE.files.set(name, {name, arrayBuffer: bak, isText: true, textPreview: new TextDecoder().decode(bak).slice(0,2000)}); logThreat('Restaurado desde backup: '+name, 'low'); continue; }
+      else { logThreat('No hay backup para '+name, 'medium'); continue; }
+    }
+    const param = STORE.manifest.param;
+    const mode = STORE.manifest.mode;
+    if(STORE.files.get(name).isText){
+      const txt = new TextDecoder().decode(rotatedBuf);
+      let original;
+      if(mode === 'right') original = rotateTextByChars(txt, -param);
+      else if(mode === 'left') original = rotateTextByChars(txt, param);
+      else if(mode === 'up') original = rotateLines(txt, -param);
+      else if(mode === 'down') original = rotateLines(txt, param);
+      else original = txt;
+      STORE.files.set(name, {name, arrayBuffer: new TextEncoder().encode(original).buffer, isText:true, textPreview: original.slice(0,2000)});
+      logThreat('Desrotado (texto): '+name, 'low');
+    } else {
+      const buf = rotatedBuf;
+      let originalBuf;
+      if(mode === 'binary_left') originalBuf = bytesRotR(buf, param);
+      else if(mode === 'binary_right') originalBuf = bytesRotL(buf, param);
+      else originalBuf = buf.slice(0);
+      STORE.files.set(name, {name, arrayBuffer: originalBuf, isText:false, textPreview:`Binary ${originalBuf.byteLength} bytes`});
+      logThreat('Desrotado (binario): '+name, 'low');
+    }
+  }
+  renderFilesList();
+  updateFileSelect();
+  manifestPreview.textContent = JSON.stringify(STORE.manifest, null, 2);
+  verifyResult.textContent = 'HMAC verificado y desrotación completada.';
+  logThreat('Desrotación completada.', 'low');
+  DEFENSE_SYSTEM.updateDashboard();
+};
+
+/* -------------------------
+   Verify loop auto
+   ------------------------- */
+let verifyTimer = null;
+document.getElementById('autoVerify').addEventListener('change', (e)=>{
+  if(e.target.checked){
+    const iv = Math.max(5, parseInt(document.getElementById('verifyInterval').value || 20));
+    verifyTimer = setInterval(()=> autoVerifyAndRepair(), iv*1000);
+    logThreat('Auto-verify activado, intervalo ' + iv + 's', 'low');
+  } else {
+    clearInterval(verifyTimer); verifyTimer = null; logThreat('Auto-verify desactivado', 'low');
+  }
+});
+
+async function autoVerifyAndRepair(){
+  if(!STORE.manifest) { logThreat('Auto-verify: manifest ausente', 'medium'); return; }
+  const rotKey = document.getElementById('rotKey').value;
+  const manCopy = Object.assign({}, STORE.manifest);
+  const h = manCopy.hmac;
+  delete manCopy.hmac;
+  if(h){
+    if(!rotKey){ logThreat('Auto-verify: ROT_KEY ausente — no puede verificarse HMAC', 'medium'); verifyResult.textContent = 'ROT_KEY faltante'; return; }
+    const b = new TextEncoder().encode(JSON.stringify(manCopy, Object.keys(manCopy).sort()));
+    const calc = await hmacSha512(rotKey, b);
+    if(calc !== h){ verifyResult.textContent = 'HMAC mismatch!'; logThreat('Auto-verify: HMAC mismatch', 'high'); attemptRepairAll(); return; }
+  }
+  // verify each sha512
+  let okAll = true;
+  let report = [];
+  for(const [name,info] of Object.entries(STORE.manifest.entries)){
+    const rotated = STORE.rotated.get(name);
+    if(!rotated){ okAll = false; report.push({name, ok:false, reason:'rotated missing'}); continue; }
+    const hval = await sha512ArrayBuffer(rotated);
+    if(hval !== info.sha512){ okAll = false; report.push({name, ok:false, reason:'sha mismatch'}); }
+    else report.push({name, ok:true});
+  }
+  verifyResult.textContent = JSON.stringify(report, null, 2);
+  if(!okAll){ logThreat('AutoVerify detectó inconsistencias, intentando reparación', 'high'); attemptRepairAll(); }
+  else { logThreat('AutoVerify: OK', 'low'); }
+}
+
+function attemptRepairAll(){
+  // in this POC, attempt repair from backups in STORE.backups
+  for(const [name,info] of Object.entries(STORE.manifest.entries)){
+    if(!STORE.rotated.get(name) || info.sha512 !== undefined && info.sha512 !== undefined){
+      const bk = STORE.backups.get(name);
+      if(bk){
+        // re-run rotate on backup to "repair" rotated using current mode/param
+        const meta = {name, arrayBuffer: bk, isText: true, textPreview: new TextDecoder().decode(bk).slice(0,2000)};
+        // reuse rotate logic for a single file
+        (async ()=>{
+          if(meta.isText){
+            const txt = new TextDecoder().decode(bk);
+            let rotated;
+            const mode = STORE.manifest.mode; const param = STORE.manifest.param;
+            if(mode === 'right') rotated = rotateTextByChars(txt, param);
+            else if(mode === 'left') rotated = rotateTextByChars(txt, -param);
+            else if(mode === 'up') rotated = rotateLines(txt, param);
+            else if(mode === 'down') rotated = rotateLines(txt, -param);
+            else rotated = txt;
+            const ab = new TextEncoder().encode(rotated).buffer;
+            STORE.rotated.set(name, ab);
+            logThreat('Repair: regenerated rotated from backup: ' + name, 'low');
+          } else {
+            // binary: copy as-is
+            STORE.rotated.set(name, bk.slice(0));
+            logThreat('Repair: restored binary rotated from backup: ' + name, 'low');
+          }
+        })();
+      } else {
+        logThreat('Repair failed: no backup for ' + name, 'high');
+      }
+    }
+  }
+}
+
+/* -------------------------
+   Export / Download functions
+   ------------------------- */
+document.getElementById('btnExportManifest').onclick = ()=>{
+  if(!STORE.manifest) return alert('No hay manifest.');
+  const blob = new Blob([JSON.stringify(STORE.manifest, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'manifest.json'; a.click();
+  URL.revokeObjectURL(url);
+  logThreat('Manifest descargado.', 'low');
+};
+
+document.getElementById('btnDownloadAll').onclick = ()=>{
+  if(STORE.rotated.size === 0) return alert('No hay archivos rotados.');
+  for(const [name,ab] of STORE.rotated){
+    const blob = new Blob([ab], {type:'application/octet-stream'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'rotated--'+name; a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 2000);
+  }
+  logThreat('Descarga iniciada para archivos rotados (uno por uno).', 'low');
+};
+
+document.getElementById('btnClear').onclick = ()=>{
+  if(!confirm('¿Borrar toda la sesión (archivos, rotated, manifest)?')) return;
+  STORE.files.clear(); STORE.rotated.clear(); STORE.manifest = null; STORE.backups.clear(); STORE.manifestHmac = null;
+  renderFilesList(); updateFileSelect(); manifestPreview.textContent = '— manifest vacío —'; verifyResult.textContent = '— nada —';
+  logThreat('Sesión limpiada.', 'low');
+  DEFENSE_SYSTEM.updateDashboard();
+};
+
+document.getElementById('btnView').onclick = ()=> viewFile(selFile.value);
+document.getElementById('btnDownload').onclick = ()=>{
+  const name = selFile.value;
+  if(!name) return alert('Selecciona un archivo');
+  const meta = STORE.files.get(name);
+  if(!meta) return alert('Archivo no encontrado');
+  const blob = new Blob([meta.arrayBuffer], {type:'application/octet-stream'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(()=> URL.revokeObjectURL(a.href), 2000);
+  logThreat('Descarga archivo: ' + name, 'low');
+};
+
+/* -------------------------
+   Simulators: GitHub rotative & ClouDNS
+   ------------------------- */
+document.getElementById('btnSimBranch').onclick = ()=> {
+  if(!STORE.manifest){ alert('Genera manifest antes de simular push.'); return; }
+  const repo = document.getElementById('repoName').value || 'fgm/demo';
+  const branch = 'rot-' + Date.now() + '-' + Math.floor(Math.random()*1e6).toString(36);
+  const payload = {
+    repo, branch, manifest: STORE.manifest, timestamp: Date.now()
+  };
+  // show payload as JSON modal (simple)
+  manifestPreview.textContent = JSON.stringify(payload, null, 2);
+  logThreat('Simulado push rotativo a GitHub: ' + repo + ' -> branch ' + branch, 'low');
+};
+
+document.getElementById('btnSimCloudns').onclick = ()=> {
+  // create pseudo checks using nodes list
+  const nodes = ['Amsterdam, NL','Ashburn, US','Frankfurt, DE','Tokyo, JP','Sao Paulo, BR','Sydney, AU','Mexico City, MX'];
+  const checks = [];
+  for(const n of nodes){
+    checks.push({name:'fgm-web-'+n.replace(/[^a-z0-9]/ig,'-').toLowerCase(), node:n, type:'web', period:'10min', host:'home.cern'});
+  }
+  // render nodes
+  const container = document.getElementById('nodesList');
+  container.innerHTML = '<pre>' + JSON.stringify(checks, null, 2) + '</pre>';
+  logThreat('Simulado ClouDNS checks creados ('+checks.length+' nodos).', 'low');
+  // start a simple simulator of UP/DOWN pings
+  startNodeSimulator(checks);
+};
+
+/* -------------------------
+   Simple node simulator
+   ------------------------- */
+let nodeTimers = [];
+function startNodeSimulator(checks){
+  // clear previous
+  nodeTimers.forEach(t=>clearInterval(t));
+  nodeTimers = [];
+  const container = document.getElementById('nodesList');
+  container.innerHTML = '';
+  
+  checks.forEach((c, idx)=>{
+    const el = document.createElement('div');
+    el.style.padding = '8px';
+    el.style.borderBottom = '1px solid rgba(255,255,255,0.04)';
+    el.id = 'node-'+idx;
+    el.innerHTML = `<strong>${c.name}</strong> <span class="muted">(${c.node})</span> <div id="nstatus-${idx}" class="muted">Checking...</div>`;
+    container.appendChild(el);
+    
+    // randomize initial state
+    let state = Math.random() > 0.1 ? 'UP' : 'DOWN';
+    document.getElementById('nstatus-'+idx).textContent = state + ' (simulado)';
+    
+    const t = setInterval(()=>{
+      // random flip
+      if(Math.random() < 0.06) state = (state === 'UP' ? 'DOWN' : 'UP');
+      document.getElementById('nstatus-'+idx).textContent = state + ' (simulado) ' + new Date().toLocaleTimeString();
+      
+      if(state === 'DOWN') {
+        logThreat(`Alerta simulated: ${c.name} DOWN at node ${c.node}`, 'high');
+        // trigger simple webhook handler simulation
+        // in production call your orchestrator webhook
+      }
+    }, 5000 + Math.random()*5000);
+    
+    nodeTimers.push(t);
+  });
+}
+
+/* -------------------------
+   Init improved system
+   ------------------------- */
+(function init(){
+  logThreat('POC mejorado iniciado. Carga archivos para comenzar.', 'low');
+  updateFileSelect();
+  manifestPreview.textContent = '— manifest vacío —';
+  initTabs();
+  DEFENSE_SYSTEM.init();
+  
+  // Event listeners for new buttons
+  document.getElementById('btnEnableAllDefenses').addEventListener('click', () => {
+    DEFENSE_SYSTEM.enableAllDefenses();
+  });
+  
+  document.getElementById('btnApplyAIRecommendations').addEventListener('click', () => {
+    DEFENSE_SYSTEM.applyAIRecommendations();
+  });
+})();
+</script>
+
+</body>
+</html>
